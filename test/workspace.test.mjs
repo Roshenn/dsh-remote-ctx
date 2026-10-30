@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { anchorName, anchorPath, createAnchor, isPlaceholder, materializeListing, readAnchor } from '../lib/workspace.mjs';
+import { anchorName, anchorPath, createAnchor, entriesBelow, isPlaceholder, listAnchors, materializeListing, readAnchor, writePlaceholder } from '../lib/workspace.mjs';
 
 const workspace = mkdtempSync(join(tmpdir(), 'dsh-remote-ctx-workspace-'));
 test.after(() => rmSync(workspace, { recursive: true, force: true }));
@@ -101,4 +101,48 @@ test('materializeListing never clobbers a real local file', () => {
   });
   assert.equal(result.skipped, 1);
   assert.equal(readFileSync(join(anchor.path, 'docs', 'notes.md'), 'utf8'), 'user notes\n');
+});
+
+test('writePlaceholder adds one file and respects the anchor rules', () => {
+  const anchor = createAnchor({ workspacesDir: workspace, connection, remotePath: '/srv/work' });
+  assert.equal(writePlaceholder({
+    anchorPath: anchor.path,
+    relativePath: 'late/deep.txt',
+    connectionId: 'lan-box',
+    remotePath: '/srv/work/late/deep.txt',
+  }), true);
+  assert.match(readFileSync(join(anchor.path, 'late', 'deep.txt'), 'utf8'), /remote file: \/srv\/work\/late\/deep\.txt/);
+
+  // Reserved names stay the anchor's own, and an escaping path writes nothing.
+  assert.equal(writePlaceholder({ anchorPath: anchor.path, relativePath: 'AGENTS.md', connectionId: 'lan-box', remotePath: '/srv/work/AGENTS.md' }), false);
+  assert.equal(writePlaceholder({ anchorPath: anchor.path, relativePath: '../escape.txt', connectionId: 'lan-box', remotePath: '/srv/work/../escape.txt' }), false);
+  assert.equal(existsSync(join(workspace, 'escape.txt')), false);
+
+  // A real local edit survives the next single-file refresh.
+  writeFileSync(join(anchor.path, 'edited.txt'), 'mine\n');
+  assert.equal(writePlaceholder({ anchorPath: anchor.path, relativePath: 'edited.txt', connectionId: 'lan-box', remotePath: '/srv/work/edited.txt' }), false);
+  assert.equal(readFileSync(join(anchor.path, 'edited.txt'), 'utf8'), 'mine\n');
+});
+
+test('entriesBelow slices a root walk down to one workspace directory', () => {
+  const entries = [
+    { path: 'README.md', type: 'file' },
+    { path: 'app', type: 'dir' },
+    { path: 'app/src', type: 'dir' },
+    { path: 'app/src/main.js', type: 'file' },
+    { path: 'apps/other.js', type: 'file' },
+  ];
+  assert.deepEqual(entriesBelow(entries, '.').map((entry) => entry.path), ['README.md', 'app', 'app/src', 'app/src/main.js', 'apps/other.js']);
+  assert.deepEqual(entriesBelow(entries, 'app').map((entry) => entry.path), ['src', 'src/main.js']);
+  // A sibling that merely shares the prefix is not part of the workspace.
+  assert.deepEqual(entriesBelow(entries, 'apps').map((entry) => entry.path), ['other.js']);
+});
+
+test('listAnchors ignores directories that carry no marker', () => {
+  const created = createAnchor({ workspacesDir: workspace, connection, remotePath: '/srv/work/listed' });
+  mkdirSync(join(workspace, 'not-an-anchor'), { recursive: true });
+  const anchors = listAnchors(workspace);
+  assert.equal(anchors.some((anchor) => anchor.path === created.path), true);
+  assert.equal(anchors.some((anchor) => anchor.path.endsWith('not-an-anchor')), false);
+  assert.equal(anchors.find((anchor) => anchor.path === created.path).marker.connectionId, 'lan-box');
 });

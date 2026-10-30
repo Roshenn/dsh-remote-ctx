@@ -18,6 +18,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   still carry the marker, so a real local edit is never clobbered; content is
   still read through `remote_ctx_read`.
 
+### Fixed
+
+- **Files created after the workspace never reached `@`.** The placeholder
+  listing was materialised only by `remote_ctx_workspace`, so a file created
+  later — a `touch` in a terminal, another session's write, a sync push — stayed
+  invisible to `@file` completion until the workspace was re-created.
+  `remote_ctx_index` now re-materialises every anchor of the connection from the
+  walk it already paid for (no second SFTP traversal), `remote_ctx_write`
+  upserts one placeholder in O(1), and a push refreshes the placeholders it
+  created on both the tool and the panel API. Re-running
+  `remote_ctx_workspace` remains the full refresh. No file is ever deleted on
+  either side; stale placeholders for deleted remote files are left alone by
+  design.
+
 ## [0.2.0] — 2026-10-30
 
 ### Added

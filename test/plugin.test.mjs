@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { register } from 'node:module';
@@ -176,6 +176,49 @@ test('creates a workspace for a remote directory', async () => {
   assert.equal(registry.created.length, 1);
   assert.equal(registry.created[0].path, created.workspacePath);
   assert.ok(existsSync(join(created.workspacePath, 'app.js')), 'the anchor lists the remote tree');
+});
+
+test('a write adds its @ placeholder without a walk', async () => {
+  const { call } = makeStack();
+  await call('remote_ctx_connections', {
+    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
+  });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'src' });
+
+  await call('remote_ctx_write', { connection: 'lan', path: 'src/new.js', content: 'export const n = 2;\n' });
+  const placeholder = join(created.workspacePath, 'new.js');
+  assert.ok(existsSync(placeholder), 'the anchor lists the written file');
+  assert.match(readFileSync(placeholder, 'utf8'), /remote file: \/home\/tester\/work\/src\/new\.js/);
+});
+
+test('a re-index refreshes the @ listing for a file created outside the plugin', async () => {
+  const { fake, call } = makeStack();
+  await call('remote_ctx_connections', {
+    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
+  });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'src' });
+  assert.equal(existsSync(join(created.workspacePath, 'late.txt')), false);
+
+  // A shell `touch` on the target: no tool result, so only a walk can see it.
+  fake.seed('/home/tester/work/src/late.txt', 'late\n');
+  const indexed = await call('remote_ctx_index', { connection: 'lan', refresh: true });
+  assert.equal(indexed.anchors, 1);
+  assert.ok(existsSync(join(created.workspacePath, 'late.txt')));
+});
+
+test('a sync push adds the @ placeholders it created', async () => {
+  const { call } = makeStack();
+  await call('remote_ctx_connections', {
+    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
+  });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+
+  const localRoot = join(workspace, 'push-anchor');
+  mkdirSync(localRoot, { recursive: true });
+  writeFileSync(join(localRoot, 'pushed.md'), 'pushed\n');
+  const applied = await call('remote_ctx_sync', { connection: 'lan', direction: 'push', localRoot });
+  assert.equal(applied.ok, true);
+  assert.ok(existsSync(join(created.workspacePath, 'pushed.md')), 'the pushed file is mentionable');
 });
 
 test('sync push mirrors a local directory onto the remote, dry run first', async () => {

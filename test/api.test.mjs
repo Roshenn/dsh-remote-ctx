@@ -6,7 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApiHandler } from '../lib/api.mjs';
@@ -227,6 +227,24 @@ test('a remote directory can be turned into a workspace', async () => {
   const again = await invoke(handler, 'POST', '/remote-ctx/api/workspace', { id: 'lan', path: 'src' });
   assert.equal(again.body.data.created, false);
   assert.equal(again.body.data.workspacePath, created.body.data.workspacePath);
+});
+
+test('a later index refresh adds files created after the workspace to the @ listing', async () => {
+  const { handler, fake } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  const created = await invoke(handler, 'POST', '/remote-ctx/api/workspace', { id: 'lan', path: 'src' });
+  const anchor = created.body.data.workspacePath;
+  assert.equal(existsSync(join(anchor, 'late.txt')), false);
+
+  // A file that appeared on the target after the workspace was registered —
+  // the panel's index button is the refresh trigger.
+  fake.seed('/home/tester/work/src/late.txt', 'late\n');
+  const refreshed = await invoke(handler, 'POST', '/remote-ctx/api/index', { id: 'lan' });
+  assert.equal(refreshed.status, 200);
+  assert.ok(existsSync(join(anchor, 'late.txt')));
+  assert.match(readFileSync(join(anchor, 'late.txt'), 'utf8'), /remote file: \/home\/tester\/work\/src\/late\.txt/);
 });
 
 test('unknown routes and missing ids fail cleanly', async () => {

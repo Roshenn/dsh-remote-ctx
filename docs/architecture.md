@@ -197,14 +197,25 @@ root, writes the anchor, then calls `ctx.workspaceRegistry.create(anchor, title)
 when the host exposes that optional service. The service is captured through
 `ctx.inject(['workspaceRegistry'], …)` at apply time — a plain property read or
 `ctx.get` does not resolve a service the plugin never declared, and a static
-`inject` entry would make the whole plugin wait on hosts without workspaces. The anchor also receives a **placeholder listing** of the remote tree: the
-remote walk yields directories and files, each file becomes a two-line text file
+`inject` entry would make the whole plugin wait on hosts without workspaces. The
+anchor also receives a **placeholder listing** of the remote tree: the remote
+walk yields directories and files, each file becomes a two-line text file
 starting with `[dsh-remote-ctx] remote file: <remote path>`, and reserved names
 (`AGENTS.md`, `remote-ctx.json`) are skipped. That is what makes DSH's local
-`@file` completion and the workspace panel show remote paths at all. Refreshing
-re-runs the same walk; a placeholder is overwritten only while it still starts
-with the marker, so a real local edit survives. Content is never mirrored —
-reading still goes through `remote_ctx_read`.
+`@file` completion and the workspace panel show remote paths at all.
+
+Refresh is not a timer: it happens on the actions that change the remote tree or
+are asked to rebuild it. `remote_ctx_index` reuses its own walk for every anchor
+of the connection (`refreshAnchors(id, { entries })`), so a re-index costs no
+second SFTP traversal; `remote_ctx_write` and a sync push upsert the one
+placeholder per created file (`upsertPlaceholders`, O(1)); re-running
+`remote_ctx_workspace` re-walks the whole workspace. A placeholder is overwritten
+only while it still starts with the marker, so a real local edit survives. A
+file created on the target outside all of those — a shell `touch`, an editor —
+becomes mentionable after the next refresh trigger. Nothing is ever deleted:
+placeholders for remote files that disappeared stay until the user deletes
+them, because a mirror that removes files is a different product. Content is
+never mirrored — reading still goes through `remote_ctx_read`.
 
 The registry canonicalises the
 anchor path, rejects a nonexistent directory and is idempotent per path; the
@@ -220,7 +231,7 @@ the caller is told to add it through the workspace picker.
 | `test/config.test.mjs` | connection validation, secret boundary, 0600 store |
 | `test/indexer.test.mjs` | walk, caps, glob, path/name/content search, cache round-trip |
 | `test/mirror.test.mjs` | local walk, push/pull plans, application both ways |
-| `test/workspace.test.mjs` | anchor naming, marker + AGENTS.md, idempotency |
+| `test/workspace.test.mjs` | anchor naming, marker + AGENTS.md, idempotency, single-file placeholder upsert, root-walk slicing |
 | `test/ssh-config.test.mjs` | `Host` parsing, first-wins, wildcards, Include, concrete-host list |
 | `test/dev-link.test.mjs` | profile wiring: dependency + bundle entry, idempotent, removable |
 | `test/api.test.mjs` | the seven panel routes, 400/404 mapping, secret boundary |

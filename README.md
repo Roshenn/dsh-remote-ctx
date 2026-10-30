@@ -66,6 +66,9 @@ installed side by side.
   while the files stay on the target. The anchor also carries a placeholder
   listing of the remote tree, so `@file` completion and the workspace file
   panel show the remote paths; reading one goes through `remote_ctx_read`.
+  Re-running the tool, `remote_ctx_index`, any `remote_ctx_write`, or a sync
+  push refreshes that listing, so a file created later on the target becomes
+  mentionable.
 - **Your `~/.ssh/config` is the source.** The panel lists every concrete `Host`
   with its hostname, user, port and key; picking one fills the connection form —
   nothing you already configured has to be retyped.
