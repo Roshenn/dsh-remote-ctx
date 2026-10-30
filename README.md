@@ -63,7 +63,9 @@ installed side by side.
   `remote_ctx_workspace` tool, registers a DSH workspace over a small local
   anchor. Its `AGENTS.md` tells the agent the files are remote and that
   `remote_ctx_*` tools reach them, so sessions, agents and history stay local
-  while the files stay on the target.
+  while the files stay on the target. The anchor also carries a placeholder
+  listing of the remote tree, so `@file` completion and the workspace file
+  panel show the remote paths; reading one goes through `remote_ctx_read`.
 - **Your `~/.ssh/config` is the source.** The panel lists every concrete `Host`
   with its hostname, user, port and key; picking one fills the connection form —
   nothing you already configured has to be retyped.
@@ -269,6 +271,7 @@ Details in [`docs/architecture.md`](./docs/architecture.md).
 | `SSH_KEY_UNREADABLE` — key not found / passphrase | the key path is on **this** machine; an encrypted key needs its passphrase | correct the path, or fill 密钥口令 in the edit form |
 | `SSH_AGENT_MISSING` | agent auth needs `SSH_AUTH_SOCK`; Windows OpenSSH agent is a named pipe ssh2 cannot open | use key or password auth |
 | `SSH_SFTP_UNAVAILABLE` | the server closed the SFTP subsystem | enable `Subsystem sftp` in `sshd_config` |
+| `@` only offers `AGENTS.md` and `remote-ctx.json` | the workspace anchor has no listing, or the remote walk was truncated | press **创建为工作区** again on the same directory to rebuild the listing; raise `maxIndexFiles` if it reports truncation |
 | timeout on a LAN host | wrong network, or the VPN is down | check `ssh user@host` from the same machine |
 
 To see what a server allows: `ssh -v user@host true` prints

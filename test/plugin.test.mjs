@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { register } from 'node:module';
@@ -175,6 +175,7 @@ test('creates a workspace for a remote directory', async () => {
   assert.match(created.workspacePath, /workspaces/);
   assert.equal(registry.created.length, 1);
   assert.equal(registry.created[0].path, created.workspacePath);
+  assert.ok(existsSync(join(created.workspacePath, 'app.js')), 'the anchor lists the remote tree');
 });
 
 test('sync push mirrors a local directory onto the remote, dry run first', async () => {

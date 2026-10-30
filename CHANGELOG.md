@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Workspace anchors carry a placeholder listing of the remote tree.** DSH's
+  `@file` completion and the workspace file panel read the local workspace
+  directory, so an anchor holding only `AGENTS.md` + `remote-ctx.json` could
+  never offer a remote file. Creating (or re-creating) a workspace now walks the
+  remote directory and writes directories plus one tiny
+  `[dsh-remote-ctx] remote file:` placeholder per file, bounded by
+  `maxIndexFiles`/`maxIndexDepth`. Placeholders are refreshed only when they
+  still carry the marker, so a real local edit is never clobbered; content is
+  still read through `remote_ctx_read`.
+
 ## [0.2.0] — 2026-10-30
 
 ### Added

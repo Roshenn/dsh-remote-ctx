@@ -197,7 +197,16 @@ root, writes the anchor, then calls `ctx.workspaceRegistry.create(anchor, title)
 when the host exposes that optional service. The service is captured through
 `ctx.inject(['workspaceRegistry'], …)` at apply time — a plain property read or
 `ctx.get` does not resolve a service the plugin never declared, and a static
-`inject` entry would make the whole plugin wait on hosts without workspaces. The registry canonicalises the
+`inject` entry would make the whole plugin wait on hosts without workspaces. The anchor also receives a **placeholder listing** of the remote tree: the
+remote walk yields directories and files, each file becomes a two-line text file
+starting with `[dsh-remote-ctx] remote file: <remote path>`, and reserved names
+(`AGENTS.md`, `remote-ctx.json`) are skipped. That is what makes DSH's local
+`@file` completion and the workspace panel show remote paths at all. Refreshing
+re-runs the same walk; a placeholder is overwritten only while it still starts
+with the marker, so a real local edit survives. Content is never mirrored —
+reading still goes through `remote_ctx_read`.
+
+The registry canonicalises the
 anchor path, rejects a nonexistent directory and is idempotent per path; the
 anchor name is a hash of (connection, remote path), so the panel and the tool
 converge on one workspace. Without the registry the anchor is still created and

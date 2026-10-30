@@ -48,7 +48,7 @@ DSH 默认工作区在本地磁盘。远端机器——构建机、家里的服�
 - **目标端只要 SSH。** SFTP 是 OpenSSH 自带组件，除此之外什么都不用装。
 - **远端目录可以直接变成工作区。** 点 **创建为工作区**，或调 `remote_ctx_workspace`，
   就会用一个本地锚点注册 DSH 工作区；锚点里的 `AGENTS.md` 告诉 agent 文件在远端、
-  要用 `remote_ctx_*` 工具，于是会话与历史留在本地，文件留在目标机。
+  要用 `remote_ctx_*` 工具，于是会话与历史留在本地，文件留在目标机。锚点同时会生成一份远端树的占位清单，`@` 文件补全与工作区文件面板因此能看到远端路径；内容仍由 `remote_ctx_read` 读取。
 - **直接吃你的 `~/.ssh/config`。** 面板列出每个具体 `Host` 的主机名、用户、端口和密钥，点一下就把参数填进连接表单——已经配好的东西不用再手填一遍。
 - **路径约束是构造出来的。** 每个远端路径在到达 SFTP 之前都被规范化，并证明落在连接的 `remoteRoot` 之内——模型参数和 HTTP 请求体同样适用。
 - **索引在本地，文件在远端。** 远端树只走一次，缓存在 `$DSH_HOME/remote-ctx/index/`；搜索在本地跑，只有内容检索才会按需回读远端文本文件。
@@ -217,6 +217,7 @@ host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一
 | `SSH_KEY_UNREADABLE` — 找不到私钥 / 需要口令 | 私钥路径读的是**本机**文件；加密私钥需要口令 | 改路径，或在编辑表单填「密钥口令」 |
 | `SSH_AGENT_MISSING` | agent 认证需要 `SSH_AUTH_SOCK`；Windows 的 OpenSSH agent 是命名管道，ssh2 打不开 | 改用私钥或密码 |
 | `SSH_SFTP_UNAVAILABLE` | 服务器关闭了 SFTP 子系统 | 在 `sshd_config` 打开 `Subsystem sftp` |
+| `@` 只列出 `AGENTS.md` 与 `remote-ctx.json` | 锚点里没有清单，或远端遍历被截断 | 对同一目录再点一次 **创建为工作区** 重建清单；若提示截断就调大 `maxIndexFiles` |
 | 局域网主机超时 | 网络不对或 VPN 没连 | 在同一台机器上先跑 `ssh user@host` |
 
 想知道服务器允许哪些方式：`ssh -v user@host true` 会打印

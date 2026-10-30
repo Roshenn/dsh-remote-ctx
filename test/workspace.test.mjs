@@ -4,10 +4,10 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { anchorName, anchorPath, createAnchor, readAnchor } from '../lib/workspace.mjs';
+import { anchorName, anchorPath, createAnchor, isPlaceholder, materializeListing, readAnchor } from '../lib/workspace.mjs';
 
 const workspace = mkdtempSync(join(tmpdir(), 'dsh-remote-ctx-workspace-'));
 test.after(() => rmSync(workspace, { recursive: true, force: true }));
@@ -59,4 +59,46 @@ test('different remote directories get different anchors', () => {
   const one = createAnchor({ workspacesDir: workspace, connection, remotePath: '/srv/work/a' });
   const two = createAnchor({ workspacesDir: workspace, connection, remotePath: '/srv/work/b' });
   assert.notEqual(one.path, two.path);
+});
+
+test('materializeListing writes directories and placeholder files', () => {
+  const anchor = createAnchor({ workspacesDir: workspace, connection, remotePath: '/srv/work' });
+  const result = materializeListing({
+    anchorPath: anchor.path,
+    connectionId: 'lan-box',
+    remotePrefix: '/srv/work',
+    entries: [
+      { path: 'src', type: 'dir' },
+      { path: 'src/app.js', type: 'file' },
+      { path: 'README.md', type: 'file' },
+      { path: 'AGENTS.md', type: 'file' },
+    ],
+  });
+  assert.equal(result.files, 2);
+  assert.equal(result.dirs, 1);
+  // The anchor owns AGENTS.md; a remote file with that name never replaces it.
+  assert.equal(result.skipped, 1);
+
+  const placeholder = join(anchor.path, 'src', 'app.js');
+  assert.ok(existsSync(placeholder));
+  assert.match(readFileSync(placeholder, 'utf8'), /remote file: \/srv\/work\/src\/app\.js/);
+  assert.equal(isPlaceholder(placeholder), true);
+  assert.match(readFileSync(join(anchor.path, 'AGENTS.md'), 'utf8'), /Remote workspace/);
+});
+
+test('materializeListing never clobbers a real local file', () => {
+  const anchor = createAnchor({ workspacesDir: workspace, connection, remotePath: '/srv/work' });
+  mkdirSync(join(anchor.path, 'docs'), { recursive: true });
+  writeFileSync(join(anchor.path, 'docs', 'notes.md'), 'user notes\n');
+  const result = materializeListing({
+    anchorPath: anchor.path,
+    connectionId: 'lan-box',
+    remotePrefix: '/srv/work',
+    entries: [
+      { path: 'docs', type: 'dir' },
+      { path: 'docs/notes.md', type: 'file' },
+    ],
+  });
+  assert.equal(result.skipped, 1);
+  assert.equal(readFileSync(join(anchor.path, 'docs', 'notes.md'), 'utf8'), 'user notes\n');
 });

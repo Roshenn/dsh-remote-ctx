@@ -219,6 +219,8 @@ test('a remote directory can be turned into a workspace', async () => {
   assert.equal(created.body.data.created, true);
   assert.equal(created.body.data.remotePath, '/home/tester/work/src');
   assert.ok(existsSync(join(created.body.data.workspacePath, 'AGENTS.md')));
+  assert.equal(created.body.data.listing.files, 1);
+  assert.ok(existsSync(join(created.body.data.workspacePath, 'app.js')));
   assert.equal(registry.created.length, 1);
   assert.match(registry.created[0].title, /src$/);
 
