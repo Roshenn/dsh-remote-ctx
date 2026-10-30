@@ -194,7 +194,10 @@ $DSH_HOME/remote-ctx/workspaces/<connection>-<sha1(connection, path)>
 
 `createWorkspace()` resolves the requested remote path inside the connection
 root, writes the anchor, then calls `ctx.workspaceRegistry.create(anchor, title)`
-when the host exposes that optional service. The registry canonicalises the
+when the host exposes that optional service. The service is captured through
+`ctx.inject(['workspaceRegistry'], …)` at apply time — a plain property read or
+`ctx.get` does not resolve a service the plugin never declared, and a static
+`inject` entry would make the whole plugin wait on hosts without workspaces. The registry canonicalises the
 anchor path, rejects a nonexistent directory and is idempotent per path; the
 anchor name is a hash of (connection, remote path), so the panel and the tool
 converge on one workspace. Without the registry the anchor is still created and

@@ -195,3 +195,67 @@ test('sync push mirrors a local directory onto the remote, dry run first', async
   assert.equal(applied.ok, true);
   assert.equal(fake.read('/home/tester/work/docs/notes.md'), 'local notes\n');
 });
+
+test('the workspace registry is captured through ctx.inject', async () => {
+  // The host does not expose workspaceRegistry as a plain property; it is only
+  // available to a context that declared it. This reproduces that shape.
+  const fake = createFakeRemote({ home: '/home/tester' });
+  fake.mkdir('/home/tester/work');
+  const dir = join(workspace, `inject-${stackSeq += 1}`);
+  mkdirSync(dir, { recursive: true });
+  const registry = {
+    created: [],
+    async create(path, title) { this.created.push({ path, title }); return { id: 'w1', path, title }; },
+  };
+  const tools = new Map();
+  const ctx = {
+    tools: { register(definition) { tools.set(definition.name, definition); return () => tools.delete(definition.name); } },
+    inject(deps, callback) { callback({ workspaceRegistry: registry }); },
+  };
+  plugin.apply(ctx, {
+    connectionsFile: join(dir, 'connections.json'),
+    indexDir: join(dir, 'index'),
+    workspacesDir: join(dir, 'workspaces'),
+    sshConfigFile: SSH_CONFIG,
+    allowRemoteWrite: true,
+  }, { adapterFor: () => fake.adapter });
+
+  tools.get('remote_ctx_connections').execute({
+    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
+  }, { agent: {}, signal: new AbortController().signal });
+  const created = await tools.get('remote_ctx_workspace').execute(
+    { connection: 'lan', path: '.' },
+    { agent: {}, signal: new AbortController().signal },
+  );
+  assert.equal(created.ok, true);
+  assert.equal(registry.created.length, 1);
+});
+
+test('without a registry the anchor is still created and reported', async () => {
+  const fake = createFakeRemote({ home: '/home/tester' });
+  fake.mkdir('/home/tester/work');
+  const dir = join(workspace, `noreg-${stackSeq += 1}`);
+  mkdirSync(dir, { recursive: true });
+  const tools = new Map();
+  const ctx = {
+    tools: { register(definition) { tools.set(definition.name, definition); return () => tools.delete(definition.name); } },
+  };
+  plugin.apply(ctx, {
+    connectionsFile: join(dir, 'connections.json'),
+    indexDir: join(dir, 'index'),
+    workspacesDir: join(dir, 'workspaces'),
+    sshConfigFile: SSH_CONFIG,
+    allowRemoteWrite: true,
+  }, { adapterFor: () => fake.adapter });
+
+  tools.get('remote_ctx_connections').execute({
+    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
+  }, { agent: {}, signal: new AbortController().signal });
+  const created = await tools.get('remote_ctx_workspace').execute(
+    { connection: 'lan', path: '.' },
+    { agent: {}, signal: new AbortController().signal },
+  );
+  assert.equal(created.ok, false);
+  assert.match(created.text, /registry unavailable/);
+  assert.ok(created.workspacePath.includes('workspaces'));
+});

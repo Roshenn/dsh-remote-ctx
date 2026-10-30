@@ -28,6 +28,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **"workspace 注册服务不可用" on a host that clearly has workspaces.** A plain
+  property read (`ctx.workspaceRegistry`) and `ctx.get` do not resolve a service
+  the plugin never declared, so the registry was always `undefined`. It is now
+  captured through `ctx.inject(['workspaceRegistry'], …)` — the same optional
+  pattern the panel uses for `webServer` — while staying non-mandatory for hosts
+  without workspaces.
+
 - **Auth failures are actionable.** "All configured authentication methods
   failed" is replaced by `SSH_AUTH_FAILED` naming the target, the method that
   was tried and the server-side check that fixes it; key read/parse failures
