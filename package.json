@@ -1,0 +1,85 @@
+{
+  "name": "dsh-remote-ctx",
+  "version": "0.1.0",
+  "description": "Minimal remote context for DeepSeek Harness: put a workspace's files on a remote host over plain SSH, then list, read, write, link and index them as if they were local. No CLI on the target, no agent on the target; sessions and $DSH_HOME stay local.",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "jrri",
+    "url": "https://github.com/Roshenn"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Roshenn/dsh-remote-ctx.git"
+  },
+  "homepage": "https://github.com/Roshenn/dsh-remote-ctx#readme",
+  "bugs": {
+    "url": "https://github.com/Roshenn/dsh-remote-ctx/issues"
+  },
+  "main": "lib/index.js",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "icon.svg",
+    "docs",
+    "README.md",
+    "README.zh-CN.md",
+    "INSTALL.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.13.0",
+    "dsh": ">=0.2.1-rc.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.1",
+    "@deepseek-ai/dsh-tools": ">=0.2.1-rc.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "ssh2": "^1.17.0"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "smoke": "node scripts/smoke.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "ssh",
+    "remote",
+    "remote-context",
+    "sftp",
+    "workspace",
+    "file-index",
+    "agent"
+  ]
+}

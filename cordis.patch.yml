@@ -1,0 +1,26 @@
+# dsh-remote-ctx bundle patch.
+#
+# The package's `dsh.bundle.patch` points here; the loader applies this file as
+# one layer and the row below mounts lib/index.js as a plain cordis plugin.
+# The patch loader replaces a row's whole `config` object, never deep-merges it,
+# so every field you rely on is restated below.
+- insert:
+    - id: remote-ctx
+      name: 'dsh-remote-ctx'
+      config:
+        # Where connection records live. Empty = $DSH_HOME/remote-ctx/connections.json (mode 0600).
+        connectionsFile: ''
+        # Where built file indexes are cached. Empty = $DSH_HOME/remote-ctx/index/.
+        indexDir: ''
+        # Opening a TCP/SSH connection must finish inside this budget.
+        connectTimeoutMs: 15000
+        # SSH keepalive: an idle pooled connection is probed this often.
+        keepaliveIntervalMs: 15000
+        # An idle connection is closed after this long; the next call reconnects.
+        idleTtlMs: 180000
+        # Hard bounds that stop one walk or one search from eating the host.
+        maxIndexFiles: 20000
+        maxIndexDepth: 8
+        maxReadBytes: 262144
+        # Writing to the remote over SFTP is on by default; set false for a read-only install.
+        allowRemoteWrite: true

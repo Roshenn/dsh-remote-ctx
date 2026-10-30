@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # The test suite has no dependencies: @deepseek-ai/dsh-tools is stubbed
+      # through a loader hook and the remote side is an in-memory adapter.
+      - name: Package manifest check
+        run: node scripts/check.mjs
+      - name: Tests
+        run: node --test "test/*.test.mjs"
