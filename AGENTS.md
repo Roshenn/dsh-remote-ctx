@@ -116,7 +116,49 @@ plugin contract.
 
 ---
 
-## 5. Commit examples
+## 5. Version numbers and releases
+
+**Source of truth**: the `version` field in `package.json`. `CHANGELOG.md` keeps
+`## [Unreleased]` on top; a release seals it into `## [X.Y.Z] — YYYY-MM-DD`.
+
+**Daily work — do not touch `version`.** Add an entry under `## [Unreleased]`
+(`Added` / `Changed` / `Fixed` / `Removed`) in the same commit as the behaviour
+change. Bumps happen once per release, not per commit, so the version stays a
+statement about what shipped rather than a counter of commits.
+
+**Cutting a release**: run the planner, review, commit, tag.
+
+```bash
+node scripts/version.mjs --dry-run   # print the derived bump and the files it would touch
+node scripts/version.mjs             # apply it
+```
+
+- The bump is derived from Conventional Commits since the last `vX.Y.Z` tag:
+  `feat` → minor, `fix` / `perf` / `refactor` → patch, `!` or a
+  `BREAKING CHANGE:` footer → major. `docs` / `test` / `chore` / `style` / `ci` /
+  `build` never bump. While the version is 0.x a breaking change lands as a minor
+  bump, per semver's "anything may change" clause.
+- Override the derivation with `--bump=patch|minor|major` and the changelog date
+  with `--date=YYYY-MM-DD`. `--dry-run` writes nothing.
+- One run updates all five places, which is the whole point: `package.json`, the
+  sealed `CHANGELOG.md` section, and — in `README.md`, `README.zh-CN.md` and
+  `INSTALL.md` — both the `dsh-remote-ctx@X.Y.Z` install pins and the `` `X.Y.Z` ``
+  status line. Editing one of them by hand without the others is the drift this
+  script exists to prevent.
+- Then commit **only those files** as `chore(release): X.Y.Z`, and tag that
+  commit: `git tag -a vX.Y.Z -m "vX.Y.Z"`. Tags are `v`-prefixed and annotated —
+  the script reads them as the next baseline, and a missing tag makes the next
+  release re-count commits that already shipped.
+- `npm publish` and `git push --tags` are outward-facing acts: wait for an
+  explicit request, exactly like `git push`.
+
+Never hand-edit `version` to skip the script: the changelog heading, the install
+pins and the tag would disagree with the manifest, and `npm run check` only
+guards the semver shape, not the agreement.
+
+---
+
+## 6. Commit examples
 
 ```bash
 git add lib/paths.mjs test/paths.test.mjs
@@ -136,7 +178,7 @@ git commit -m "feat(host): report per-file failures in mirror rows
 
 ---
 
-## 6. When in doubt
+## 7. When in doubt
 
 Read `docs/architecture.md` before moving a boundary, `SECURITY.md` before
 touching connection handling, path resolution or the panel API, and
