@@ -72,6 +72,12 @@ test('editing without resending a password keeps the stored one', () => {
   assert.equal(edited.auth.password, 'hunter2');
 });
 
+test('editing a key connection without a passphrase keeps the stored one', () => {
+  const previous = normalizeConnection({ id: 'k', host: 'h', auth: { kind: 'key', privateKeyPath: '/keys/id', passphrase: 's3cret' } });
+  const edited = normalizeConnection({ id: 'k', host: 'h2', auth: toPublicConnection(previous).auth }, { previous });
+  assert.equal(edited.auth.passphrase, 's3cret');
+});
+
 test('the store round-trips through a 0600 file', () => {
   const config = resolveConfig({ connectionsFile: join(workspace, 'nested', 'connections.json') }, { DSH_HOME: workspace });
   const connection = normalizeConnection({ id: 'c1', host: 'h', auth: { kind: 'agent' } });

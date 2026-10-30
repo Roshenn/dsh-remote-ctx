@@ -16,6 +16,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and mirror now open inside the column with a back button. All UI copy is
   Chinese; the private-key form gained an optional passphrase field.
 
+### Fixed
+
+- Saving a key-based connection with the passphrase field left empty keeps the
+  stored passphrase instead of wiping it — the same rule the password field
+  already followed.
+
 ### Added
 
 - **`~/.ssh/config` discovery** — `lib/ssh-config.mjs` parses the Host blocks a
