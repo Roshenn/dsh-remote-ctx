@@ -11,7 +11,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.1--rc.1-4B32C3?style=flat-square)](#compatibility)
 [![node](https://img.shields.io/badge/node-%3E%3D22.13-339933?style=flat-square&logo=node.js&logoColor=white)](#compatibility)
-[![tests](https://img.shields.io/badge/tests-45%20passing-brightgreen?style=flat-square)](./test)
+[![tests](https://img.shields.io/badge/tests-53%20passing-brightgreen?style=flat-square)](./test)
 
 </div>
 
@@ -128,6 +128,41 @@ ssh you@host 'echo $SHELL; ls -d ~'
 
 > Read INSTALL.md at https://github.com/Roshenn/dsh-remote-ctx and follow it.
 > Then run the smoke check and tell me the result.
+
+### Local development (linked checkout)
+
+`dsh plugin` cannot manage the `desktop` profile, and while developing you want
+the running app to load the checkout on disk rather than a published copy. The
+dev install is therefore the same shape `dsh-looptree-dashboard` uses: a `link:`
+dependency plus a bundle entry in the profile manifest. One command makes both
+edits, idempotently:
+
+```bash
+node scripts/dev-link.mjs --profile "$DSH_HOME/profiles/desktop"
+```
+
+Then install twice — once in the profile, once in this checkout:
+
+```bash
+cd "$DSH_HOME/profiles/desktop" && pnpm install --prefer-offline
+cd /path/to/dsh-remote-ctx && npm install --no-package-lock
+```
+
+The second install is not optional: **a linked checkout keeps its own
+`node_modules`**, so the profile install never installs `ssh2` for this package.
+Without it the plugin loads, every tool works, and every connection attempt fails
+with `SSH2_MISSING`.
+
+Fully quit and relaunch DeepSeek Harness — a page reload does not load new plugin
+code. The sidebar should then show **Remote context**.
+
+`--dry-run` prints the manifest that would be written, `--remove` undoes both
+edits, and `--install` runs the profile `pnpm install` for you.
+
+| File | Change |
+| --- | --- |
+| `profiles/desktop/package.json` | `"dsh-remote-ctx": "link:../../dsh-remote-ctx"` |
+| `profiles/desktop/package.json` | append `dsh-remote-ctx` to `dsh.profile.bundles` |
 
 ## Quick start
 
@@ -256,7 +291,7 @@ ecosystem, and says so:
 ## Status
 
 `0.1.0` — the host half, the panel, the index and the mirror are implemented and
-covered by 45 tests. What is deliberately missing:
+covered by 53 tests. What is deliberately missing:
 
 - remote command execution / PTY (use `dsh-remote-ssh`);
 - deletion in the mirror;
@@ -266,7 +301,7 @@ covered by 45 tests. What is deliberately missing:
 ## Development
 
 ```bash
-node --test "test/*.test.mjs"   # 45 tests, no dependencies, no network
+node --test "test/*.test.mjs"   # 53 tests, no dependencies, no network
 node scripts/check.mjs          # package manifest / patch / export sanity
 node scripts/smoke.mjs          # print the resolved config and connections
 ```

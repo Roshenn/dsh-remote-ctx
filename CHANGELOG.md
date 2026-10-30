@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/dev-link.mjs` (`npm run dev-link`) — wires this checkout into a DSH
+  profile as a `link:` dependency plus a `dsh.profile.bundles` entry, the same
+  install shape `dsh-looptree-dashboard` uses, with `--dry-run`, `--remove` and
+  `--install`. Needed because the desktop profile is shell-managed and cannot be
+  installed with `dsh plugin`.
+
+### Fixed
+
+- Documented that a `link:` install keeps its own `node_modules`: the profile
+  never installs this package's `ssh2`, so `npm install --no-package-lock` in the
+  checkout is part of the dev install, not an extra.
+
 ## [0.1.0] — 2026-10-30
 
 First working release: a minimal remote-context bridge over plain SSH.
@@ -32,7 +46,7 @@ First working release: a minimal remote-context bridge over plain SSH.
   `/remote-ctx/api`.
 - **HTTP API** (`lib/api.mjs`) — same-origin JSON routes used by the panel; the
   only shape that leaves the host half never contains a password.
-- **Tests** — 45 tests, no network and no dependencies: the adapter is
+- **Tests** — 53 tests, no network and no dependencies: the adapter is
   in-memory, the `dsh-tools` peer dependency is stubbed through a loader hook.
 
 ### Known limits

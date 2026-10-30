@@ -11,7 +11,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.1--rc.1-4B32C3?style=flat-square)](#兼容性)
 [![node](https://img.shields.io/badge/node-%3E%3D22.13-339933?style=flat-square&logo=node.js&logoColor=white)](#兼容性)
-[![tests](https://img.shields.io/badge/tests-45%20passing-brightgreen?style=flat-square)](./test)
+[![tests](https://img.shields.io/badge/tests-53%20passing-brightgreen?style=flat-square)](./test)
 
 </div>
 
@@ -102,6 +102,32 @@ ssh you@host 'echo $SHELL; ls -d ~'
 ### 交给你的 agent 装
 
 > 读 https://github.com/Roshenn/dsh-remote-ctx 的 INSTALL.md 并照做，然后跑一次 smoke 检查，把结果告诉我。
+
+### 本地开发（linked checkout）
+
+`dsh plugin` 管不了 `desktop` profile，而且开发时你要让运行中的应用加载磁盘上的仓库而不是发布副本。所以开发安装用的是和 `dsh-looptree-dashboard` 一样的形态：profile 清单里一条 `link:` 依赖加一条 bundle 条目。一条命令幂等地完成这两处修改：
+
+```bash
+node scripts/dev-link.mjs --profile "$DSH_HOME/profiles/desktop"
+```
+
+然后装两次——一次在 profile，一次在本仓库：
+
+```bash
+cd "$DSH_HOME/profiles/desktop" && pnpm install --prefer-offline
+cd /path/to/dsh-remote-ctx && npm install --no-package-lock
+```
+
+第二次不是可选的：**linked checkout 保留自己的 `node_modules`**，profile 的安装不会替这个包装 `ssh2`。缺了它插件照样加载、工具照样能用，但每次连接都会以 `SSH2_MISSING` 失败。
+
+完全退出并重启 DeepSeek Harness——刷新页面不会加载新插件代码。侧栏随后应出现 **Remote context**。
+
+`--dry-run` 只打印将要写入的清单，`--remove` 撤销两处修改，`--install` 顺手帮你跑 profile 的 `pnpm install`。
+
+| 文件 | 修改 |
+| --- | --- |
+| `profiles/desktop/package.json` | `"dsh-remote-ctx": "link:../../dsh-remote-ctx"` |
+| `profiles/desktop/package.json` | 向 `dsh.profile.bundles` 追加 `dsh-remote-ctx` |
 
 ## 快速上手
 
@@ -212,7 +238,7 @@ host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一
 
 ## 状态
 
-`0.1.0` —— host 半、面板、索引与镜像均已实现，45 个测试覆盖。刻意不做的事：
+`0.1.0` —— host 半、面板、索引与镜像均已实现，53 个测试覆盖。刻意不做的事：
 
 - 远端命令执行 / PTY（用 `dsh-remote-ssh`）；
 - 镜像中的删除；
@@ -222,7 +248,7 @@ host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一
 ## 开发
 
 ```bash
-node --test "test/*.test.mjs"   # 45 个测试，零依赖、零网络
+node --test "test/*.test.mjs"   # 53 个测试，零依赖、零网络
 node scripts/check.mjs          # 包清单 / patch / exports 自检
 node scripts/smoke.mjs          # 打印解析后的配置与连接
 ```

@@ -163,6 +163,7 @@ response contains a password.
 | `test/config.test.mjs` | connection validation, secret boundary, 0600 store |
 | `test/indexer.test.mjs` | walk, caps, glob, path/name/content search, cache round-trip |
 | `test/mirror.test.mjs` | local walk, push/pull plans, application both ways |
+| `test/dev-link.test.mjs` | profile wiring: dependency + bundle entry, idempotent, removable |
 | `test/api.test.mjs` | the seven panel routes, 400/404 mapping, secret boundary |
 | `test/plugin.test.mjs` | cordis contract, seven tools, end-to-end through every layer |
 

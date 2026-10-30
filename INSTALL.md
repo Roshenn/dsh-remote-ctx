@@ -40,6 +40,21 @@ row. `ssh2` is the only runtime dependency and it needs no build step.
 Do **not** install into the `desktop` profile from the CLI — the desktop shell
 manages it. Use **Plugins → Add plugin** there.
 
+## 2b. Local development install (linked checkout)
+
+When developing the plugin itself, install the checkout as a link instead of a
+package, and restart the desktop app afterwards:
+
+```bash
+node scripts/dev-link.mjs --profile "$DSH_HOME/profiles/desktop"
+cd "$DSH_HOME/profiles/desktop" && pnpm install --prefer-offline
+cd /path/to/dsh-remote-ctx && npm install --no-package-lock
+```
+
+A linked checkout keeps its own `node_modules`, so the second install supplies
+`ssh2`; without it connections fail with `SSH2_MISSING`. `--dry-run` previews the
+manifest edit and `--remove` undoes it.
+
 ## 3. Restart
 
 Fully stop and start the harness (tray → Quit, then relaunch; or restart

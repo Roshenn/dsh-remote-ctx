@@ -18,8 +18,13 @@ that survives this list:
 ```bash
 git clone https://github.com/Roshenn/dsh-remote-ctx
 cd dsh-remote-ctx
+npm install --no-package-lock   # ssh2, so a linked dev install can connect
 node --test "test/*.test.mjs"
 ```
+
+To load the checkout in a running desktop app, use the linked install:
+`npm run dev-link -- --profile <profile-dir>`, then restart DSH. See
+[README → Local development](README.md#local-development-linked-checkout).
 
 No `npm install` is needed: `@deepseek-ai/dsh-tools` is stubbed through a loader
 hook (`test/stub/loader.mjs`) and the remote side is an in-memory adapter
