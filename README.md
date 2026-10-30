@@ -112,7 +112,7 @@ dsh plugin --profile web add github:Roshenn/dsh-remote-ctx
 dsh plugin --profile web add ./dsh-remote-ctx
 
 # from npm, once the release lands
-npx -y @deepseek-ai/dsh plugin --profile web add dsh-remote-ctx@0.1.0
+npx -y @deepseek-ai/dsh plugin --profile web add dsh-remote-ctx@0.2.0
 ```
 
 Then restart `dsh web` (a page refresh alone does not load new plugin code).
@@ -316,7 +316,7 @@ ecosystem, and says so:
 
 ## Status
 
-`0.1.0` — the host half, the panel, the index and the mirror are implemented and
+`0.2.0` — the host half, the panel, the index and the mirror are implemented and
 covered by 53 tests. What is deliberately missing:
 
 - remote command execution / PTY (use `dsh-remote-ssh`);

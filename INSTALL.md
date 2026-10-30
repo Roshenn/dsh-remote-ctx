@@ -30,7 +30,7 @@ Alternatives, in order of preference:
 dsh plugin --profile web add /absolute/path/to/dsh-remote-ctx
 
 # published release
-dsh plugin --profile web add dsh-remote-ctx@0.1.0
+dsh plugin --profile web add dsh-remote-ctx@0.2.0
 ```
 
 The command forwards to pnpm against the profile's `package.json`; the package's

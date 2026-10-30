@@ -85,7 +85,7 @@ dsh plugin --profile web add github:Roshenn/dsh-remote-ctx
 dsh plugin --profile web add ./dsh-remote-ctx
 
 # npm 发版之后
-npx -y @deepseek-ai/dsh plugin --profile web add dsh-remote-ctx@0.1.0
+npx -y @deepseek-ai/dsh plugin --profile web add dsh-remote-ctx@0.2.0
 ```
 
 然后重启 `dsh web`（只刷新页面不会加载新插件代码）。
@@ -257,7 +257,7 @@ host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一
 
 ## 状态
 
-`0.1.0` —— host 半、面板、索引与镜像均已实现，53 个测试覆盖。刻意不做的事：
+`0.2.0` —— host 半、面板、索引与镜像均已实现，53 个测试覆盖。刻意不做的事：
 
 - 远端命令执行 / PTY（用 `dsh-remote-ssh`）；
 - 镜像中的删除；

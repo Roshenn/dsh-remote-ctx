@@ -1,6 +1,6 @@
 {
   "name": "dsh-remote-ctx",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Minimal remote context for DeepSeek Harness: put a workspace's files on a remote host over plain SSH, then list, read, write, link and index them as if they were local. No CLI on the target, no agent on the target; sessions and $DSH_HOME stay local.",
   "type": "module",
   "license": "MIT",

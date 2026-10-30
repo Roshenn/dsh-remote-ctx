@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-30
+
 ### Added
 
 - **Remote workspaces.** `remote_ctx_workspace` (tool) and `POST /api/workspace`
