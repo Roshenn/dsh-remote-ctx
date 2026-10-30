@@ -69,7 +69,8 @@
     "test": "node --test \"test/*.test.mjs\"",
     "smoke": "node scripts/smoke.mjs",
     "check": "node scripts/check.mjs",
-    "dev-link": "node scripts/dev-link.mjs"
+    "dev-link": "node scripts/dev-link.mjs",
+    "release": "node scripts/version.mjs"
   },
   "keywords": [
     "dsh",
