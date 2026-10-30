@@ -26,7 +26,12 @@ function makeProfile(name = 'profile') {
 }
 
 test('linkSpec produces a relative link: reference with forward slashes', () => {
-  const spec = linkSpec('C:\\Users\\Jrri\\.dsh\\profiles\\desktop', 'C:\\Users\\Jrri\\.dsh\\dsh-remote-ctx');
+  // Native separators on purpose: on Windows `relative()` returns backslashes,
+  // and producing the forward-slash `link:` spelling is exactly what this
+  // asserts. Hardcoding `C:\` here used to make the case pass on Windows only.
+  const profileDir = join(tmpdir(), 'dsh', 'profiles', 'desktop');
+  const packageDir = join(tmpdir(), 'dsh', 'dsh-remote-ctx');
+  const spec = linkSpec(profileDir, packageDir);
   assert.equal(spec, 'link:../../dsh-remote-ctx');
 });
 
