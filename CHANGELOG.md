@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Keyboard-interactive password auth** — servers that expose password login
+  only through PAM/2FA prompts now work: the adapter answers each prompt with
+  the stored password (`tryKeyboard` + a `keyboard-interactive` handler).
+- **Real-socket auth tests** — an in-process `ssh2` server exercises correct
+  password, rejected password, keyboard-interactive-only, private-key and
+  missing-key paths (`test/ssh-auth.test.mjs`, skipped when `ssh2` is absent).
+
+### Fixed
+
+- **Auth failures are actionable.** "All configured authentication methods
+  failed" is replaced by `SSH_AUTH_FAILED` naming the target, the method that
+  was tried and the server-side check that fixes it; key read/parse failures
+  become `SSH_KEY_UNREADABLE` with the local path and passphrase hint; the
+  panel prefixes known codes with a Chinese one-liner (`lib/ssh2-adapter.mjs`,
+  `lib/client.js`).
+
 ### Changed
 
 - **Remote context is a two-column workbench.** The rail lists every

@@ -87,6 +87,21 @@ first tool call ────┴──▶ pool: RemoteFs(adapter)
 with no `node_modules` still loads the plugin, and every tool that needs a
 connection reports `SSH2_MISSING` with the fix instead of a load-time crash.
 
+### Auth
+
+- **password** — `password` plus `tryKeyboard: true`; a server that only offers
+  keyboard-interactive is answered with the same secret.
+- **key** — the file is read from the local machine (path or `~`), then parsed
+  by ssh2; `passphrase` is passed through when stored. A missing or
+  unparseable key fails before any network round trip (`SSH_KEY_UNREADABLE`).
+- **agent** — `auth.agent` or `SSH_AUTH_SOCK`; Windows named-pipe OpenSSH
+  agent is not a socket ssh2 can open, so it is reported as
+  `SSH_AGENT_MISSING`.
+
+A rejected method becomes `SSH_AUTH_FAILED` with the target, the method and the
+fix; ssh2 own "All configured authentication methods failed" is never surfaced
+alone. `test/ssh-auth.test.mjs` drives these paths against an in-process ssh2
+server and skips when the dependency is absent.
 ## Index format
 
 `$DSH_HOME/remote-ctx/index/<connectionId>.json`:

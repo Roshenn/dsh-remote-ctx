@@ -204,6 +204,18 @@ cd /path/to/dsh-remote-ctx && npm install --no-package-lock
 
 host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一条 `/remote-ctx` 前缀路由给面板。每个连接一个池化的 `RemoteFs`，它独占 SFTP 通道；其上的一切——遍历器、索引器、镜像器、工具、HTTP——都与传输无关，这也是测试可以在没有网络的情况下用内存适配器跑通整条链路的原因。详见 [`docs/architecture.md`](./docs/architecture.md)。
 
+## 排障
+
+| 现象 | 原因 | 处理 |
+| --- | --- | --- |
+| `SSH_AUTH_FAILED` — 服务器拒绝所有方式 | 导入的公钥不在 `authorized_keys`、密码错误，或该账号不允许登录 | 用终端跑同样的 `ssh user@host`；如果它也失败，就是服务端问题（`ssh-copy-id`），或在连接里改成密码认证 |
+| `SSH_KEY_UNREADABLE` — 找不到私钥 / 需要口令 | 私钥路径读的是**本机**文件；加密私钥需要口令 | 改路径，或在编辑表单填「密钥口令」 |
+| `SSH_AGENT_MISSING` | agent 认证需要 `SSH_AUTH_SOCK`；Windows 的 OpenSSH agent 是命名管道，ssh2 打不开 | 改用私钥或密码 |
+| `SSH_SFTP_UNAVAILABLE` | 服务器关闭了 SFTP 子系统 | 在 `sshd_config` 打开 `Subsystem sftp` |
+| 局域网主机超时 | 网络不对或 VPN 没连 | 在同一台机器上先跑 `ssh user@host` |
+
+想知道服务器允许哪些方式：`ssh -v user@host true` 会打印
+`Authentications that can continue: …`。插件不猜：它只试连接上配置的方法，并原样报告被拒原因。
 ## 安全边界
 
 - **主机密钥：** 没有配置 `hostFingerprint` 时，`ssh2` 接受任意主机密钥。可信局域网之外请务必固定指纹。

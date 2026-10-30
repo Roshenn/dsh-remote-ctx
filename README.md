@@ -254,6 +254,19 @@ indexer, mirror, tools, HTTP — is transport-agnostic, which is why the test su
 runs the whole stack against an in-memory adapter with no network at all.
 Details in [`docs/architecture.md`](./docs/architecture.md).
 
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| `SSH_AUTH_FAILED` — server rejected every method | the imported key is not in `authorized_keys`, the password is wrong, or the account may not log in | run the same `ssh user@host` from a terminal: if it fails too, fix the server (`ssh-copy-id`) or edit the connection and switch to password |
+| `SSH_KEY_UNREADABLE` — key not found / passphrase | the key path is on **this** machine; an encrypted key needs its passphrase | correct the path, or fill 密钥口令 in the edit form |
+| `SSH_AGENT_MISSING` | agent auth needs `SSH_AUTH_SOCK`; Windows OpenSSH agent is a named pipe ssh2 cannot open | use key or password auth |
+| `SSH_SFTP_UNAVAILABLE` | the server closed the SFTP subsystem | enable `Subsystem sftp` in `sshd_config` |
+| timeout on a LAN host | wrong network, or the VPN is down | check `ssh user@host` from the same machine |
+
+To see what a server allows: `ssh -v user@host true` prints
+`Authentications that can continue: …`. The plugin never guesses: it tries the
+method stored on the connection and reports exactly what was refused.
 ## Safety boundaries
 
 - **Host keys:** without a pinned `hostFingerprint`, `ssh2` accepts any host key.
