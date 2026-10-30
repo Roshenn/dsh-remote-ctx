@@ -136,7 +136,12 @@ into place, so a dropped connection cannot leave a truncated file behind.
 ## Panel
 
 The browser half registers one left-sidebar entry (`sidebar.panellist`,
-order 47) and one main page, following the ModuleLoader contract:
+order 47) and one main page, following the ModuleLoader contract. The page is
+a two-column workbench (`grid-template-columns: 288px minmax(0, 1fr)`): the
+rail lists `~/.ssh/config` hosts and saved connections, the detail column holds
+one of five views — `new` (the default), `detail`, `edit`, `browse`, `mirror`.
+Selecting a host only sets form state; no request is sent until the form is
+submitted, so browsing the rail can never create a record:
 
 ```js
 window.__ModuleLoader__.load({ id: 'dsh-remote-ctx', factory: (require) => { … } });

@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Remote context is a two-column workbench.** The rail lists every
+  `~/.ssh/config` Host and every saved connection; the right column opens on the
+  connection form instead of an empty state. Picking a host prefills the form
+  (nothing is written until 连接), a successful connect switches the column to
+  that connection's detail (test / browse / mirror / edit / delete), and browse
+  and mirror now open inside the column with a back button. All UI copy is
+  Chinese; the private-key form gained an optional passphrase field.
+
 ### Added
 
 - **`~/.ssh/config` discovery** — `lib/ssh-config.mjs` parses the Host blocks a

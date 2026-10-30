@@ -60,8 +60,8 @@ installed side by side.
 - **SSH-only target.** SFTP is part of every OpenSSH install; nothing else is
   required on the other side.
 - **Your `~/.ssh/config` is the source.** The panel lists every concrete `Host`
-  with its hostname, user, port and key, and imports one in a click — nothing
-  you already configured has to be retyped.
+  with its hostname, user, port and key; picking one fills the connection form —
+  nothing you already configured has to be retyped.
 - **Path confinement by construction.** Every remote path is normalised and
   proven inside the connection's `remoteRoot` before it reaches SFTP — model
   arguments and HTTP bodies included.
@@ -169,10 +169,11 @@ edits, and `--install` runs the profile `pnpm install` for you.
 
 ## Quick start
 
-1. Open the sidebar entry **Remote context**. Every concrete `Host` from
-   `~/.ssh/config` is listed under **From ~/.ssh/config** with an **Add** button;
-   import one, or use **Add connection** and fill in host, auth and the remote
-   directory that becomes the workspace root yourself.
+1. Open the sidebar entry **Remote context**. The page is a two-column
+   workbench: **SSH 配置** on the left lists every concrete `Host` from
+   `~/.ssh/config`, and the **新建连接** form is already open on the right.
+   Clicking a host only prefills that form — nothing is saved until **连接** is
+   pressed.
 2. Press **Test** — a successful test reports the remote home and root.
 3. Press **Browse** to walk the remote tree, then **Index here** to cache it.
 4. Ask in chat: *"What files are in the remote workspace? Find the config that
@@ -206,7 +207,7 @@ replaces a row's whole `config` object — restate every field you need.
 | `maxIndexFiles` | `20000` | Hard cap on one walk |
 | `maxIndexDepth` | `8` | Hard cap on walk depth |
 | `maxReadBytes` | `262144` | Default read budget per file |
-| `sshConfigFile` | `~/.ssh/config` | Where **From ~/.ssh/config** reads Host entries from |
+| `sshConfigFile` | `~/.ssh/config` | Where the left rail reads `Host` entries from |
 | `allowRemoteWrite` | `true` | Set `false` for a read-only install |
 
 Connections can also come from a hand-written file. The flat shape is compatible

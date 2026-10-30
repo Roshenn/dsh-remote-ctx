@@ -46,7 +46,7 @@ DSH 默认工作区在本地磁盘。远端机器——构建机、家里的服�
 ## 特性
 
 - **目标端只要 SSH。** SFTP 是 OpenSSH 自带组件，除此之外什么都不用装。
-- **直接吃你的 `~/.ssh/config`。** 面板会列出每个具体 `Host` 的主机名、用户、端口和密钥，点一下就能导入——已经配好的东西不用再手填一遍。
+- **直接吃你的 `~/.ssh/config`。** 面板列出每个具体 `Host` 的主机名、用户、端口和密钥，点一下就把参数填进连接表单——已经配好的东西不用再手填一遍。
 - **路径约束是构造出来的。** 每个远端路径在到达 SFTP 之前都被规范化，并证明落在连接的 `remoteRoot` 之内——模型参数和 HTTP 请求体同样适用。
 - **索引在本地，文件在远端。** 远端树只走一次，缓存在 `$DSH_HOME/remote-ctx/index/`；搜索在本地跑，只有内容检索才会按需回读远端文本文件。
 - **原子写入。** 先写临时文件再 rename；写失败不会留下半截文件。
@@ -132,7 +132,7 @@ cd /path/to/dsh-remote-ctx && npm install --no-package-lock
 
 ## 快速上手
 
-1. 打开侧栏 **Remote context**。`~/.ssh/config` 里每个具体 `Host` 都会列在 **From ~/.ssh/config** 下，点 **Add** 直接导入；也可以点 **Add connection** 自己填主机、认证方式和作为工作区根的远端目录。
+1. 打开侧栏 **远程上下文**。页面是左右两栏：左侧 **SSH 配置** 列出 `~/.ssh/config` 里每个具体 `Host`，右侧 **新建连接** 表单已经打开。点左侧主机只会预填表单，点 **连接** 才真正保存。
 2. 点 **Test**，成功会报告远端 home 与 root。
 3. 点 **Browse** 浏览远端目录，再点 **Index here** 建立索引。
 4. 在对话里问：*「远端工作区里有哪些文件？找出出现 DATABASE_URL 的那个配置。」*
@@ -163,7 +163,7 @@ cd /path/to/dsh-remote-ctx && npm install --no-package-lock
 | `maxIndexFiles` | `20000` | 单次遍历文件数上限 |
 | `maxIndexDepth` | `8` | 单次遍历深度上限 |
 | `maxReadBytes` | `262144` | 单文件默认读取预算 |
-| `sshConfigFile` | `~/.ssh/config` | **From ~/.ssh/config** 读取 Host 条目的位置 |
+| `sshConfigFile` | `~/.ssh/config` | 左栏读取 `Host` 条目的位置 |
 | `allowRemoteWrite` | `true` | 设为 `false` 变成只读安装 |
 
 连接也可以手写文件，扁平结构与 `$DSH_HOME/dsh-ssh-connections.json` 兼容：

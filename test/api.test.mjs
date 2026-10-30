@@ -192,6 +192,19 @@ test('a proxied Host and an unknown alias fail cleanly', async () => {
   assert.equal(unknown.body.error.code, 'SSH_HOST_NOT_FOUND');
 });
 
+test('the panel connect flow: save a connection, then test it', async () => {
+  const { handler } = makeApi();
+  const saved = await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', label: 'LAN', host: '10.0.0.5', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  assert.equal(saved.status, 200);
+
+  const tested = await invoke(handler, 'POST', '/remote-ctx/api/test', { id: 'lan' });
+  assert.equal(tested.status, 200);
+  assert.equal(tested.body.data.root, '/home/tester/work');
+  assert.equal(tested.body.data.entries, 2);
+});
+
 test('unknown routes and missing ids fail cleanly', async () => {
   const { handler } = makeApi();
   const missing = await invoke(handler, 'GET', '/remote-ctx/api/browse');
