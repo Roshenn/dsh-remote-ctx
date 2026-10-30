@@ -8,6 +8,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`~/.ssh/config` discovery** — `lib/ssh-config.mjs` parses the Host blocks a
+  user already has (HostName / User / Port / IdentityFile / ProxyJump, `Include`
+  files, `*` and `!` patterns, first-obtained-value-wins) and the panel lists
+  them under **From ~/.ssh/config** with a one-click **Add**. New
+  `remote_ctx_connections` actions `discover` and `import`, new routes
+  `GET /api/ssh-config` and `POST /api/ssh-config/import`, new config field
+  `sshConfigFile`. Hosts with ProxyJump/ProxyCommand are listed but cannot be
+  imported: the adapter opens direct SFTP sessions only.
+
+### Added
+
 - `scripts/dev-link.mjs` (`npm run dev-link`) — wires this checkout into a DSH
   profile as a `link:` dependency plus a `dsh.profile.bundles` entry, the same
   install shape `dsh-looptree-dashboard` uses, with `--dry-run`, `--remove` and

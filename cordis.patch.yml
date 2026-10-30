@@ -12,6 +12,8 @@
         connectionsFile: ''
         # Where built file indexes are cached. Empty = $DSH_HOME/remote-ctx/index/.
         indexDir: ''
+        # SSH config to read Host entries from. Empty = ~/.ssh/config.
+        sshConfigFile: ''
         # Opening a TCP/SSH connection must finish inside this budget.
         connectTimeoutMs: 15000
         # SSH keepalive: an idle pooled connection is probed this often.

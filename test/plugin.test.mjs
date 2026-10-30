@@ -20,15 +20,24 @@ const plugin = await import('../lib/index.js');
 const workspace = mkdtempSync(join(tmpdir(), 'dsh-remote-ctx-plugin-'));
 test.after(() => rmSync(workspace, { recursive: true, force: true }));
 
+const SSH_CONFIG = join(workspace, 'ssh-config');
+writeFileSync(SSH_CONFIG, 'Host workstation\n  HostName 10.1.2.3\n  User dev\n');
+
+let stackSeq = 0;
+
 function makeStack() {
+  // A per-test store: the plugin persists connections to disk.
+  const dir = join(workspace, `stack-${stackSeq += 1}`);
+  mkdirSync(dir, { recursive: true });
   const fake = createFakeRemote({ home: '/home/tester' });
   fake.mkdir('/home/tester/work/src');
   fake.seed('/home/tester/work/README.md', '# remote workspace\n');
   fake.seed('/home/tester/work/src/app.js', 'export const answer = 42;\n');
 
   const config = {
-    connectionsFile: join(workspace, 'connections.json'),
-    indexDir: join(workspace, 'index'),
+    connectionsFile: join(dir, 'connections.json'),
+    indexDir: join(dir, 'index'),
+    sshConfigFile: SSH_CONFIG,
     allowRemoteWrite: true,
   };
   const registered = new Map();
@@ -131,6 +140,23 @@ test('index then find searches the cached index', async () => {
 
   const content = await call('remote_ctx_find', { connection: 'lan', query: 'answer', mode: 'content' });
   assert.match(content.text, /src\/app\.js/);
+});
+
+test('discover lists ~/.ssh/config hosts, and import creates one connection', async () => {
+  const { call } = makeStack();
+  const discovered = await call('remote_ctx_connections', { action: 'discover' });
+  assert.equal(discovered.ok, true);
+  assert.match(discovered.text, /workstation/);
+  assert.equal(discovered.hosts.length, 1);
+  assert.equal(discovered.hosts[0].hostName, '10.1.2.3');
+
+  const imported = await call('remote_ctx_connections', { action: 'import', host: 'workstation' });
+  assert.equal(imported.ok, true);
+  assert.match(imported.text, /imported `workstation`/);
+
+  const listed = await call('remote_ctx_connections', { action: 'list' });
+  assert.match(listed.text, /workstation/);
+  assert.match(listed.text, /10\.1\.2\.3/);
 });
 
 test('sync push mirrors a local directory onto the remote, dry run first', async () => {

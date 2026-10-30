@@ -59,6 +59,9 @@ installed side by side.
 
 - **SSH-only target.** SFTP is part of every OpenSSH install; nothing else is
   required on the other side.
+- **Your `~/.ssh/config` is the source.** The panel lists every concrete `Host`
+  with its hostname, user, port and key, and imports one in a click — nothing
+  you already configured has to be retyped.
 - **Path confinement by construction.** Every remote path is normalised and
   proven inside the connection's `remoteRoot` before it reaches SFTP — model
   arguments and HTTP bodies included.
@@ -80,7 +83,7 @@ installed side by side.
 
 | Tool | What it does | Key arguments |
 | --- | --- | --- |
-| `remote_ctx_connections` | List / add / update / remove / test SSH connections | `action`, `id`, `host?`, `port?`, `username?`, `privateKeyPath?`, `password?`, `agentSocket?`, `remoteRoot?`, `localWorkspace?` |
+| `remote_ctx_connections` | List / add / update / remove / test / discover / import SSH connections | `action`, `id`, `host?`, `port?`, `username?`, `privateKeyPath?`, `password?`, `agentSocket?`, `remoteRoot?`, `localWorkspace?` |
 | `remote_ctx_ls` | List one remote directory: type, size, mtime | `connection`, `path?`, `limit?` |
 | `remote_ctx_read` | Read a remote text file, bounded and truncation-aware | `connection`, `path`, `limit?` |
 | `remote_ctx_write` | Atomic write inside the remote root | `connection`, `path`, `content` |
@@ -166,9 +169,10 @@ edits, and `--install` runs the profile `pnpm install` for you.
 
 ## Quick start
 
-1. Open the sidebar entry **Remote context → Add connection** (or ask the model
-   to call `remote_ctx_connections` with `action: "add"`). Fill in host, auth and
-   the remote directory that becomes the workspace root.
+1. Open the sidebar entry **Remote context**. Every concrete `Host` from
+   `~/.ssh/config` is listed under **From ~/.ssh/config** with an **Add** button;
+   import one, or use **Add connection** and fill in host, auth and the remote
+   directory that becomes the workspace root yourself.
 2. Press **Test** — a successful test reports the remote home and root.
 3. Press **Browse** to walk the remote tree, then **Index here** to cache it.
 4. Ask in chat: *"What files are in the remote workspace? Find the config that
@@ -202,6 +206,7 @@ replaces a row's whole `config` object — restate every field you need.
 | `maxIndexFiles` | `20000` | Hard cap on one walk |
 | `maxIndexDepth` | `8` | Hard cap on walk depth |
 | `maxReadBytes` | `262144` | Default read budget per file |
+| `sshConfigFile` | `~/.ssh/config` | Where **From ~/.ssh/config** reads Host entries from |
 | `allowRemoteWrite` | `true` | Set `false` for a read-only install |
 
 Connections can also come from a hand-written file. The flat shape is compatible
