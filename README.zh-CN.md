@@ -46,6 +46,9 @@ DSH 默认工作区在本地磁盘。远端机器——构建机、家里的服�
 ## 特性
 
 - **目标端只要 SSH。** SFTP 是 OpenSSH 自带组件，除此之外什么都不用装。
+- **远端目录可以直接变成工作区。** 点 **创建为工作区**，或调 `remote_ctx_workspace`，
+  就会用一个本地锚点注册 DSH 工作区；锚点里的 `AGENTS.md` 告诉 agent 文件在远端、
+  要用 `remote_ctx_*` 工具，于是会话与历史留在本地，文件留在目标机。
 - **直接吃你的 `~/.ssh/config`。** 面板列出每个具体 `Host` 的主机名、用户、端口和密钥，点一下就把参数填进连接表单——已经配好的东西不用再手填一遍。
 - **路径约束是构造出来的。** 每个远端路径在到达 SFTP 之前都被规范化，并证明落在连接的 `remoteRoot` 之内——模型参数和 HTTP 请求体同样适用。
 - **索引在本地，文件在远端。** 远端树只走一次，缓存在 `$DSH_HOME/remote-ctx/index/`；搜索在本地跑，只有内容检索才会按需回读远端文本文件。
@@ -60,6 +63,7 @@ DSH 默认工作区在本地磁盘。远端机器——构建机、家里的服�
 | 工具 | 作用 | 主要参数 |
 | --- | --- | --- |
 | `remote_ctx_connections` | 列出 / 新增 / 修改 / 删除 / 测试 / 发现 / 导入 SSH 连接 | `action`、`id`、`host?`、`port?`、`username?`、`privateKeyPath?`、`password?`、`agentSocket?`、`remoteRoot?`、`localWorkspace?` |
+| `remote_ctx_workspace` | 用本地锚点把远端目录注册成 DSH 工作区 | `connection`、`path?`、`title?` |
 | `remote_ctx_ls` | 列出一个远端目录：类型、大小、修改时间 | `connection`、`path?`、`limit?` |
 | `remote_ctx_read` | 读取远端文本文件，有上限并标注是否截断 | `connection`、`path`、`limit?` |
 | `remote_ctx_write` | 在远端根目录内做原子写入 | `connection`、`path`、`content` |
@@ -164,6 +168,7 @@ cd /path/to/dsh-remote-ctx && npm install --no-package-lock
 | `maxIndexDepth` | `8` | 单次遍历深度上限 |
 | `maxReadBytes` | `262144` | 单文件默认读取预算 |
 | `sshConfigFile` | `~/.ssh/config` | 左栏读取 `Host` 条目的位置 |
+| `workspacesDir` | `$DSH_HOME/remote-ctx/workspaces` | 承载远端工作区的本地锚点目录 |
 | `allowRemoteWrite` | `true` | 设为 `false` 变成只读安装 |
 
 连接也可以手写文件，扁平结构与 `$DSH_HOME/dsh-ssh-connections.json` 兼容：

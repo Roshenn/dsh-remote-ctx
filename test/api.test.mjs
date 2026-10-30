@@ -6,7 +6,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApiHandler } from '../lib/api.mjs';
@@ -37,6 +37,7 @@ function makeApi() {
   fake.mkdir('/home/tester/work/src');
   fake.seed('/home/tester/work/README.md', '# remote\n');
   fake.seed('/home/tester/work/src/app.js', 'export const n = 1;\n');
+  const registry = { created: [], async create(path, title) { this.created.push({ path, title }); return { id: 'w1', path, title }; } };
   const context = new RemoteContext(
     {
       connectionsFile: join(dir, 'connections.json'),
@@ -49,10 +50,11 @@ function makeApi() {
       maxReadBytes: 65536,
       allowRemoteWrite: true,
       sshConfigFile: SSH_CONFIG,
+      workspacesDir: join(dir, 'workspaces'),
     },
-    { adapterFor: () => fake.adapter },
+    { adapterFor: () => fake.adapter, registry: () => registry },
   );
-  return { fake, context, handler: createApiHandler(context) };
+  return { fake, context, registry, handler: createApiHandler(context) };
 }
 
 function invoke(handler, method, url, body) {
@@ -203,6 +205,26 @@ test('the panel connect flow: save a connection, then test it', async () => {
   assert.equal(tested.status, 200);
   assert.equal(tested.body.data.root, '/home/tester/work');
   assert.equal(tested.body.data.entries, 2);
+});
+
+test('a remote directory can be turned into a workspace', async () => {
+  const { handler, registry } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+
+  const created = await invoke(handler, 'POST', '/remote-ctx/api/workspace', { id: 'lan', path: 'src' });
+  assert.equal(created.status, 200);
+  assert.equal(created.body.data.registered, true);
+  assert.equal(created.body.data.created, true);
+  assert.equal(created.body.data.remotePath, '/home/tester/work/src');
+  assert.ok(existsSync(join(created.body.data.workspacePath, 'AGENTS.md')));
+  assert.equal(registry.created.length, 1);
+  assert.match(registry.created[0].title, /src$/);
+
+  const again = await invoke(handler, 'POST', '/remote-ctx/api/workspace', { id: 'lan', path: 'src' });
+  assert.equal(again.body.data.created, false);
+  assert.equal(again.body.data.workspacePath, created.body.data.workspacePath);
 });
 
 test('unknown routes and missing ids fail cleanly', async () => {

@@ -38,8 +38,10 @@ function makeStack() {
     connectionsFile: join(dir, 'connections.json'),
     indexDir: join(dir, 'index'),
     sshConfigFile: SSH_CONFIG,
+    workspacesDir: join(dir, 'workspaces'),
     allowRemoteWrite: true,
   };
+  const registry = { created: [], async create(path, title) { this.created.push({ path, title }); return { id: 'w1', path, title }; } };
   const registered = new Map();
   const ctx = {
     tools: {
@@ -50,13 +52,13 @@ function makeStack() {
       },
     },
   };
-  plugin.apply(ctx, config, { adapterFor: () => fake.adapter });
+  plugin.apply(ctx, config, { adapterFor: () => fake.adapter, registry: () => registry });
   const call = async (name, args = {}) => {
     const definition = registered.get(name);
     if (!definition) throw new Error(`tool ${name} is not registered`);
     return definition.execute(args, { agent: {}, signal: new AbortController().signal });
   };
-  return { fake, registered, call };
+  return { fake, registered, registry, call };
 }
 
 test('plugin exports the cordis contract', () => {
@@ -74,6 +76,7 @@ test('apply registers the seven remote_ctx_* tools', () => {
     'remote_ctx_ls',
     'remote_ctx_read',
     'remote_ctx_sync',
+    'remote_ctx_workspace',
     'remote_ctx_write',
   ]);
 });
@@ -157,6 +160,21 @@ test('discover lists ~/.ssh/config hosts, and import creates one connection', as
   const listed = await call('remote_ctx_connections', { action: 'list' });
   assert.match(listed.text, /workstation/);
   assert.match(listed.text, /10\.1\.2\.3/);
+});
+
+test('creates a workspace for a remote directory', async () => {
+  const { registered, registry, call } = makeStack();
+  await call('remote_ctx_connections', {
+    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
+  });
+  assert.ok(registered.has('remote_ctx_workspace'));
+
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'src' });
+  assert.equal(created.ok, true);
+  assert.match(created.text, /workspace registered/);
+  assert.match(created.workspacePath, /workspaces/);
+  assert.equal(registry.created.length, 1);
+  assert.equal(registry.created[0].path, created.workspacePath);
 });
 
 test('sync push mirrors a local directory onto the remote, dry run first', async () => {

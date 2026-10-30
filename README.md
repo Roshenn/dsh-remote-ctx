@@ -59,6 +59,11 @@ installed side by side.
 
 - **SSH-only target.** SFTP is part of every OpenSSH install; nothing else is
   required on the other side.
+- **Remote directories become workspaces.** One click on **创建为工作区**, or the
+  `remote_ctx_workspace` tool, registers a DSH workspace over a small local
+  anchor. Its `AGENTS.md` tells the agent the files are remote and that
+  `remote_ctx_*` tools reach them, so sessions, agents and history stay local
+  while the files stay on the target.
 - **Your `~/.ssh/config` is the source.** The panel lists every concrete `Host`
   with its hostname, user, port and key; picking one fills the connection form —
   nothing you already configured has to be retyped.
@@ -84,6 +89,7 @@ installed side by side.
 | Tool | What it does | Key arguments |
 | --- | --- | --- |
 | `remote_ctx_connections` | List / add / update / remove / test / discover / import SSH connections | `action`, `id`, `host?`, `port?`, `username?`, `privateKeyPath?`, `password?`, `agentSocket?`, `remoteRoot?`, `localWorkspace?` |
+| `remote_ctx_workspace` | Register a remote directory as a DSH workspace over a local anchor | `connection`, `path?`, `title?` |
 | `remote_ctx_ls` | List one remote directory: type, size, mtime | `connection`, `path?`, `limit?` |
 | `remote_ctx_read` | Read a remote text file, bounded and truncation-aware | `connection`, `path`, `limit?` |
 | `remote_ctx_write` | Atomic write inside the remote root | `connection`, `path`, `content` |
@@ -208,6 +214,7 @@ replaces a row's whole `config` object — restate every field you need.
 | `maxIndexDepth` | `8` | Hard cap on walk depth |
 | `maxReadBytes` | `262144` | Default read budget per file |
 | `sshConfigFile` | `~/.ssh/config` | Where the left rail reads `Host` entries from |
+| `workspacesDir` | `$DSH_HOME/remote-ctx/workspaces` | Local anchors that back remote workspaces |
 | `allowRemoteWrite` | `true` | Set `false` for a read-only install |
 
 Connections can also come from a hand-written file. The flat shape is compatible

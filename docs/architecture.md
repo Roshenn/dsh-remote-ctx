@@ -29,6 +29,7 @@ tools (lib/index.js) ─┬─ HTTP api (lib/api.mjs) ── browser panel (lib/
 | `lib/indexer.mjs` | Walk packaging, cache file, path/name/content search | no |
 | `lib/mirror.mjs` | Local walk, push/pull plans, application | no |
 | `lib/ssh-config.mjs` | Parses `~/.ssh/config` Host blocks into connection records | no |
+| `lib/workspace.mjs` | Local anchors: marker file + AGENTS.md for a remote workspace | no |
 | `lib/remote-fs.mjs` | Root resolution, confined paths, bounded reads | adapter method names only |
 | `lib/ssh2-adapter.mjs` | Connect, auth, host key, SFTP calls, error mapping | **yes** |
 
@@ -169,6 +170,7 @@ It only calls `/remote-ctx/api` with same-origin `fetch`. Routes:
 | GET | `/api/state` | connections, live pool state, index summaries |
 | GET/POST | `/api/connections` | list / create-or-update |
 | GET | `/api/ssh-config` | concrete `Host` entries from `~/.ssh/config`, with an `added` flag |
+| POST | `/api/workspace` | create an anchor and register it as a DSH workspace |
 | POST | `/api/ssh-config/import` | create a connection from one Host alias |
 | DELETE | `/api/connections?id=` | remove a record and its index |
 | POST | `/api/test` | open the connection and list the root |
@@ -179,6 +181,25 @@ It only calls `/remote-ctx/api` with same-origin `fetch`. Routes:
 No route accepts a path without going through `RemoteFs.resolve`, and no
 response contains a password.
 
+## Remote workspaces
+
+DSH workspace records own a **local** directory, and a session's cwd is that path,
+so a remote tree is represented by an anchor:
+
+```
+$DSH_HOME/remote-ctx/workspaces/<connection>-<sha1(connection, path)>
+├── AGENTS.md        instructions: files are remote, use remote_ctx_* tools
+└── remote-ctx.json  mapping: connection, host, remoteRoot, remotePath
+```
+
+`createWorkspace()` resolves the requested remote path inside the connection
+root, writes the anchor, then calls `ctx.workspaceRegistry.create(anchor, title)`
+when the host exposes that optional service. The registry canonicalises the
+anchor path, rejects a nonexistent directory and is idempotent per path; the
+anchor name is a hash of (connection, remote path), so the panel and the tool
+converge on one workspace. Without the registry the anchor is still created and
+the caller is told to add it through the workspace picker.
+
 ## Testing
 
 | File | Covers |
@@ -187,6 +208,7 @@ response contains a password.
 | `test/config.test.mjs` | connection validation, secret boundary, 0600 store |
 | `test/indexer.test.mjs` | walk, caps, glob, path/name/content search, cache round-trip |
 | `test/mirror.test.mjs` | local walk, push/pull plans, application both ways |
+| `test/workspace.test.mjs` | anchor naming, marker + AGENTS.md, idempotency |
 | `test/ssh-config.test.mjs` | `Host` parsing, first-wins, wildcards, Include, concrete-host list |
 | `test/dev-link.test.mjs` | profile wiring: dependency + bundle entry, idempotent, removable |
 | `test/api.test.mjs` | the seven panel routes, 400/404 mapping, secret boundary |

@@ -8,6 +8,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Remote workspaces.** `remote_ctx_workspace` (tool) and `POST /api/workspace`
+  register a remote directory as a DSH workspace through a local anchor under
+  `$DSH_HOME/remote-ctx/workspaces/`. The anchor carries `remote-ctx.json`
+  (connection, host, remote path) and an `AGENTS.md` that routes file work to
+  the `remote_ctx_*` tools; `ctx.workspaceRegistry.create()` is called lazily
+  and stays optional, so a headless host still creates the anchor.
+- Panel: **创建为工作区** in the directory browser and **创建工作区** in the
+  connection detail.
+
+### Added
+
 - **Keyboard-interactive password auth** — servers that expose password login
   only through PAM/2FA prompts now work: the adapter answers each prompt with
   the stored password (`tryKeyboard` + a `keyboard-interactive` handler).

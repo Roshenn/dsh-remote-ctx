@@ -5,7 +5,7 @@ These rules bind this repo only; when the user's instruction for the current tas
 conflicts with them, the user's instruction wins.
 
 The repo is a DSH plugin: plain ESM under `lib/`, one lazily imported runtime
-dependency (`ssh2`), no build step, 82 offline tests. `CONTRIBUTING.md`,
+dependency (`ssh2`), no build step, 88 offline tests. `CONTRIBUTING.md`,
 `SECURITY.md` and `docs/architecture.md` are the source of the rules below — if
 one of them changes, change this file in the same commit.
 
@@ -40,7 +40,7 @@ sidebar UI), `tools` (`lib/index.js`, tool descriptions), `test`, `scripts`,
 
 **Before committing**:
 
-1. `npm test` is green — 82 tests, under a second, no network and no
+1. `npm test` is green — 88 tests, under a second, no network and no
    `npm install` (the `dsh-tools` peer is stubbed by `test/stub/loader.mjs`, the
    remote side is `test/fake-remote.mjs`).
 2. `npm run check` is green — the manifest, the bundle patch row, the two
@@ -124,7 +124,7 @@ git commit -m "fix(host): refuse a sibling root that shares remoteRoot's prefix
 
 - resolve() compared strings, so /srv/work-other passed as /srv/work
 - compare on a separator-terminated prefix instead
-- verification: npm test (82 pass, new case fails without the fix)"
+- verification: npm test (88 pass, new case fails without the fix)"
 
 git add lib/mirror.mjs test/mirror.test.mjs CHANGELOG.md
 git commit -m "feat(host): report per-file failures in mirror rows

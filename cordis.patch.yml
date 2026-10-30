@@ -14,6 +14,8 @@
         indexDir: ''
         # SSH config to read Host entries from. Empty = ~/.ssh/config.
         sshConfigFile: ''
+        # Local anchors that back remote workspaces. Empty = $DSH_HOME/remote-ctx/workspaces/.
+        workspacesDir: ''
         # Opening a TCP/SSH connection must finish inside this budget.
         connectTimeoutMs: 15000
         # SSH keepalive: an idle pooled connection is probed this often.
