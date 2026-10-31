@@ -32,6 +32,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   either side; stale placeholders for deleted remote files are left alone by
   design.
 
+- **A failed ssh-agent connection crashed the whole DSH host.** ssh2 emits two
+  `error` events when the agent socket cannot be reached (the agent error, then
+  `All configured authentication methods failed`). The adapter listened with
+  `once('error')`, so the second error had no listener and Node threw it as an
+  uncaught exception — the host exited with `dsh: fatal uncaught exception` and
+  the app quit. The listener now stays attached for the client's lifetime and
+  settles the connect promise once; an agent socket stored as
+  `$SSH_AUTH_SOCK` is expanded (`$VAR`/`${VAR}`) before it reaches ssh2, and a
+  socket that does not exist becomes `SSH_AGENT_UNREACHABLE` instead of an
+  authentication failure.
+
 ## [0.2.0] — 2026-10-30
 
 ### Added

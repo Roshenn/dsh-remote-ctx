@@ -5,15 +5,30 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import {
+  agentSocketOf,
   authMethodOf,
+  connectAndWait,
   describeAuthFailure,
   describeKeyFailure,
+  expandEnv,
   targetOf,
   translateConnectError,
 } from '../lib/ssh2-adapter.mjs';
 
 const base = { id: 'c1', host: '10.1.64.4', port: 22, username: 'root' };
+
+/** A stand-in for ssh2's Client: only the events and two methods the wait uses. */
+function fakeClient() {
+  const client = new EventEmitter();
+  client.ended = false;
+  client.end = () => {
+    client.ended = true;
+  };
+  client.connect = () => {};
+  return client;
+}
 
 test('targetOf and authMethodOf describe a connection in human terms', () => {
   assert.equal(targetOf(base), 'root@10.1.64.4:22');
@@ -64,4 +79,49 @@ test('translateConnectError maps ssh2 wording onto codes and hints', () => {
   const network = translateConnectError(connection, new Error('connect ECONNREFUSED 1.2.3.4:22'));
   assert.equal(network.code, 'SSH_CONNECT_FAILED');
   assert.match(network.message, /root@10\.1\.64\.4:22/);
+});
+
+test('agent sockets expand env vars and fall back to SSH_AUTH_SOCK', () => {
+  const env = { SSH_AUTH_SOCK: '/tmp/agent.sock', HOME: '/home/demo' };
+  assert.equal(expandEnv('$SSH_AUTH_SOCK', env), '/tmp/agent.sock');
+  assert.equal(expandEnv('${HOME}/agent.sock', env), '/home/demo/agent.sock');
+  assert.equal(expandEnv('$NOT_SET', env), '');
+  assert.equal(expandEnv('/fixed/agent.sock', env), '/fixed/agent.sock');
+
+  const agentConnection = { ...base, auth: { kind: 'agent', agent: '$SSH_AUTH_SOCK' } };
+  assert.equal(agentSocketOf(agentConnection, env), '/tmp/agent.sock');
+  assert.equal(agentSocketOf({ ...base, auth: { kind: 'agent' } }, env), '/tmp/agent.sock');
+  assert.equal(agentSocketOf({ ...base, auth: { kind: 'agent', agent: '$NOT_SET' } }, { SSH_AUTH_SOCK: '/tmp/fallback.sock' }), '/tmp/fallback.sock');
+  assert.equal(agentSocketOf({ ...base, auth: { kind: 'agent', agent: '$NOT_SET' } }, {}), undefined);
+});
+
+test('a second ssh2 error never escapes as an uncaught exception', async () => {
+  // ssh2 emits the agent error and then "All configured authentication methods
+  // failed"; `once('error')` used to leave the second one unheard and the host
+  // process died with `fatal uncaught exception` — the app crash this covers.
+  const connection = { ...base, auth: { kind: 'agent', agent: '$SSH_AUTH_SOCK' } };
+  const client = fakeClient();
+  client.connect = () => {
+    setTimeout(() => client.emit('error', Object.assign(new Error('connect ENOENT $SSH_AUTH_SOCK'), { level: 'agent' })), 0);
+    setTimeout(() => client.emit('error', new Error('All configured authentication methods failed')), 1);
+  };
+
+  await assert.rejects(connectAndWait(client, connection, {}), (error) => error.code === 'SSH_AGENT_UNREACHABLE');
+  assert.doesNotThrow(() => client.emit('error', new Error('late')));
+  assert.equal(client.ended, true);
+});
+
+test('a ready client resolves once and still swallows later errors', async () => {
+  const client = fakeClient();
+  client.connect = () => client.emit('ready');
+  await connectAndWait(client, base, {});
+  assert.doesNotThrow(() => client.emit('error', new Error('keepalive')));
+});
+
+test('a synchronous connect throw becomes a connect error, not an unhandled rejection', async () => {
+  const client = fakeClient();
+  client.connect = () => {
+    throw new Error('invalid config');
+  };
+  await assert.rejects(connectAndWait(client, base, {}), (error) => error.code === 'SSH_CONNECT_FAILED');
 });

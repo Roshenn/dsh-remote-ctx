@@ -226,6 +226,7 @@ host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一
 | `SSH_AUTH_FAILED` — 服务器拒绝所有方式 | 导入的公钥不在 `authorized_keys`、密码错误，或该账号不允许登录 | 用终端跑同样的 `ssh user@host`；如果它也失败，就是服务端问题（`ssh-copy-id`），或在连接里改成密码认证 |
 | `SSH_KEY_UNREADABLE` — 找不到私钥 / 需要口令 | 私钥路径读的是**本机**文件；加密私钥需要口令 | 改路径，或在编辑表单填「密钥口令」 |
 | `SSH_AGENT_MISSING` | agent 认证需要 `SSH_AUTH_SOCK`；Windows 的 OpenSSH agent 是命名管道，ssh2 打不开 | 改用私钥或密码 |
+| `SSH_AGENT_UNREACHABLE` | 配置的 agent socket 不存在（`$SSH_AUTH_SOCK` 这类字面量会先展开，但 agent 可能没启动） | 先 `eval "$(ssh-agent)"` 再 `ssh-add ~/.ssh/id_ed25519`，或把连接改成私钥认证 |
 | `SSH_SFTP_UNAVAILABLE` | 服务器关闭了 SFTP 子系统 | 在 `sshd_config` 打开 `Subsystem sftp` |
 | `@` 只列出 `AGENTS.md` 与 `remote-ctx.json` | 锚点里没有清单，或远端遍历被截断 | 对同一目录再点一次 **创建为工作区** 重建清单；若提示截断就调大 `maxIndexFiles` |
 | 局域网主机超时 | 网络不对或 VPN 没连 | 在同一台机器上先跑 `ssh user@host` |

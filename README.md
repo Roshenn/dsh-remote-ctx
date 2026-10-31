@@ -287,6 +287,7 @@ Details in [`docs/architecture.md`](./docs/architecture.md).
 | `SSH_AUTH_FAILED` — server rejected every method | the imported key is not in `authorized_keys`, the password is wrong, or the account may not log in | run the same `ssh user@host` from a terminal: if it fails too, fix the server (`ssh-copy-id`) or edit the connection and switch to password |
 | `SSH_KEY_UNREADABLE` — key not found / passphrase | the key path is on **this** machine; an encrypted key needs its passphrase | correct the path, or fill 密钥口令 in the edit form |
 | `SSH_AGENT_MISSING` | agent auth needs `SSH_AUTH_SOCK`; Windows OpenSSH agent is a named pipe ssh2 cannot open | use key or password auth |
+| `SSH_AGENT_UNREACHABLE` | the configured agent socket does not exist (a literal `$SSH_AUTH_SOCK` is expanded first, but the agent may be stopped) | `eval "$(ssh-agent)"` and `ssh-add ~/.ssh/id_ed25519`, or switch the connection to key auth |
 | `SSH_SFTP_UNAVAILABLE` | the server closed the SFTP subsystem | enable `Subsystem sftp` in `sshd_config` |
 | `@` only offers `AGENTS.md` and `remote-ctx.json` | the workspace anchor has no listing, or the remote walk was truncated | press **创建为工作区** again on the same directory to rebuild the listing; raise `maxIndexFiles` if it reports truncation |
 | timeout on a LAN host | wrong network, or the VPN is down | check `ssh user@host` from the same machine |
