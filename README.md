@@ -28,6 +28,20 @@ is that plugin.
 
 ---
 
+## Preview
+
+The panel: the `Host` entries already in your `~/.ssh/config`, the connections
+saved from them, and a remote directory one click away from becoming a
+workspace.
+
+![The remote-context panel: SSH config hosts, saved connections, and a remote directory with the create-workspace button](docs/images/panel.png)
+
+In a workspace created from a remote directory, `@` completion lists the files
+that actually live on the target — the names come from the anchor's placeholder
+listing, and reading one still goes through `remote_ctx_read`.
+
+![In a remote workspace, @ completion lists config.yaml and pipeline.ts from the remote src directory](docs/images/at-completion.png)
+
 ## Why
 
 DSH normally assumes the workspace is on local disk. A remote machine — a build
