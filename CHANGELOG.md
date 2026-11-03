@@ -20,6 +20,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **The panel mirror is two steps.** The mirror view used to run as soon as
+  the `dry run` box was cleared, and reported the result as one text block. It
+  now always plans first, shows one row per file (action, reason, size) and
+  writes only when **确认写入 N 个文件** is pressed; the applied result names the
+  failures per file instead of burying them in prose. Nothing about the plan or
+  the apply rules changed — the safety of "plan then decide" is now the only
+  path.
+
+- **A single file moves both ways from the panel.** The file view gained
+  **下载** (the text already read over SFTP is saved by the browser) and
+  **上传替换** (a local text file replaces the remote one through the same
+  `expectedMtimeMs` conflict guard as the editor, ≤ ~256 KiB). A binary pick is
+  refused with the reason instead of being written as mojibake.
+
 - **Opening a workspace refreshes its `@` listing.** A file created on the
   target outside the plugin — a shell `touch`, another session's write, an
   editor — stayed invisible to `@file` completion until `remote_ctx_index`, a

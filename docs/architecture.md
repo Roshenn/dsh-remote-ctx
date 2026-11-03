@@ -182,6 +182,14 @@ submitted, so browsing the rail can never create a record:
 window.__ModuleLoader__.load({ id: 'dsh-remote-ctx', factory: (require) => { … } });
 ```
 
+The `mirror` view is deliberately two-step: `POST /api/sync` with `dryRun: true`
+renders one row per file (action, reason, size), and the write only happens when
+that plan's file count is confirmed — the former one-click apply is gone. The
+`file` view shares the mtime conflict guard with the editor and adds two
+browser-side transfers: a download built from the text already read over SFTP,
+and an upload that reads a local text file and posts it through the same
+`POST /api/file` route (≤ ~256 KiB, the request body cap).
+
 It only calls `/remote-ctx/api` with same-origin `fetch`. Routes:
 
 | Method | Path | Purpose |

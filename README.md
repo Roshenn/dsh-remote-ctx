@@ -106,7 +106,9 @@ installed side by side.
 - **Files open in the panel.** Click a file in the directory browser to preview
   it, edit it in place and save atomically. The save carries the mtime the file
   was read at, so a remote edit in between is refused (`file-changed`) rather
-  than overwritten; a truncated or binary read stays read-only.
+  than overwritten; a truncated or binary read stays read-only. The same view
+  downloads the file to the browser and replaces it from a local text file
+  (≤ ~256 KiB), under the same mtime guard.
 - **Local index, remote tree.** The remote tree is walked once and cached under
   `$DSH_HOME/remote-ctx/index/`; search then runs locally, with content grep
   going back over the wire only for plausible text files. The panel's search box
@@ -115,7 +117,9 @@ installed side by side.
 - **Atomic writes.** Write to a temporary name, rename into place; a failed
   write never leaves a half-written file.
 - **A mirror that cannot delete.** Push local → remote or pull remote → local;
-  size-based comparison, `force` when you mean it, `dryRun` before you do.
+  size-based comparison, `force` when you mean it. The panel always shows the
+  plan first — one row per file with action, reason and size — and writes only
+  after **确认写入 N 个文件**.
 - **Lazy connections.** One pooled SFTP session per connection, keepalive,
   closed after an idle TTL — no SSH client is built until a tool needs one.
 - **Secrets stay local.** Passwords live 0600 under `$DSH_HOME` and are never
@@ -225,8 +229,8 @@ edits, and `--install` runs the profile `pnpm install` for you.
    index from the same view.
 4. Ask in chat: *"What files are in the remote workspace? Find the config that
    mentions DATABASE_URL."*
-5. To copy the current local workspace over, press **Mirror** with `dry run`
-   ticked first, then run it for real.
+5. To copy the current local workspace over, press **Mirror**, review the plan
+   it prints, then confirm the write.
 
 A typical agent session:
 
