@@ -8,6 +8,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **A remote file opens in the panel.** Clicking a file in the directory
+  browser now opens it in place: the panel reads it over SFTP (bounded by
+  `maxReadBytes`, with a truncation flag and a NUL-byte check for binaries),
+  shows size and mtime, and an edit saves atomically. The save posts the mtime
+  the file was read at — `expectedMtimeMs` — so a file changed on the target in
+  between is refused with `409 file-changed` instead of silently overwritten.
+  A truncated or binary read stays read-only. The write goes through the same
+  `allowRemoteWrite` switch as `remote_ctx_write`, drops the cached index and
+  refreshes the workspace `@` placeholder for that path.
+
 - **Workspace anchors carry a placeholder listing of the remote tree.** DSH's
   `@file` completion and the workspace file panel read the local workspace
   directory, so an anchor holding only `AGENTS.md` + `remote-ctx.json` could

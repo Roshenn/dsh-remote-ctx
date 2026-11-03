@@ -89,6 +89,10 @@ installed side by side.
 - **Path confinement by construction.** Every remote path is normalised and
   proven inside the connection's `remoteRoot` before it reaches SFTP — model
   arguments and HTTP bodies included.
+- **Files open in the panel.** Click a file in the directory browser to preview
+  it, edit it in place and save atomically. The save carries the mtime the file
+  was read at, so a remote edit in between is refused (`file-changed`) rather
+  than overwritten; a truncated or binary read stays read-only.
 - **Local index, remote tree.** The remote tree is walked once and cached under
   `$DSH_HOME/remote-ctx/index/`; search then runs locally, with content grep
   going back over the wire only for plausible text files.
@@ -201,6 +205,7 @@ edits, and `--install` runs the profile `pnpm install` for you.
    pressed.
 2. Press **Test** — a successful test reports the remote home and root.
 3. Press **Browse** to walk the remote tree, then **Index here** to cache it.
+   Click any file to preview it, edit it and save it in place.
 4. Ask in chat: *"What files are in the remote workspace? Find the config that
    mentions DATABASE_URL."*
 5. To copy the current local workspace over, press **Mirror** with `dry run`

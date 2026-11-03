@@ -29,7 +29,7 @@ writeFileSync(SSH_CONFIG, [
 
 let apiSeq = 0;
 
-function makeApi() {
+function makeApi(options = {}) {
   // Each test gets its own connection store: the API writes records to disk.
   const dir = join(workspace, `api-${apiSeq += 1}`);
   mkdirSync(dir, { recursive: true });
@@ -48,7 +48,7 @@ function makeApi() {
       maxIndexFiles: 100,
       maxIndexDepth: 6,
       maxReadBytes: 65536,
-      allowRemoteWrite: true,
+      allowRemoteWrite: options.allowRemoteWrite !== false,
       sshConfigFile: SSH_CONFIG,
       workspacesDir: join(dir, 'workspaces'),
     },
@@ -255,4 +255,81 @@ test('unknown routes and missing ids fail cleanly', async () => {
   const unknown = await invoke(handler, 'GET', '/remote-ctx/api/nope');
   assert.equal(unknown.status, 404);
   assert.equal(unknown.body.error.code, 'not-found');
+});
+
+test('a remote file can be previewed, edited and saved from the panel', async () => {
+  const { handler, fake } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+
+  const read = await invoke(handler, 'GET', '/remote-ctx/api/file?id=lan&path=src/app.js');
+  assert.equal(read.status, 200);
+  assert.equal(read.body.data.text, 'export const n = 1;\n');
+  assert.equal(read.body.data.truncated, false);
+  assert.equal(read.body.data.binary, false);
+
+  const saved = await invoke(handler, 'POST', '/remote-ctx/api/file', {
+    id: 'lan',
+    path: 'src/app.js',
+    content: 'export const n = 2;\n',
+    expectedMtimeMs: read.body.data.mtimeMs,
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(fake.read('/home/tester/work/src/app.js'), 'export const n = 2;\n');
+});
+
+test('a save is refused when the file changed after it was read', async () => {
+  const { handler, fake } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  const read = await invoke(handler, 'GET', '/remote-ctx/api/file?id=lan&path=README.md');
+  fake.files.set('/home/tester/work/README.md', {
+    content: '# changed elsewhere\n',
+    mtimeMs: read.body.data.mtimeMs + 5000,
+  });
+
+  const refused = await invoke(handler, 'POST', '/remote-ctx/api/file', {
+    id: 'lan',
+    path: 'README.md',
+    content: 'mine\n',
+    expectedMtimeMs: read.body.data.mtimeMs,
+  });
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.error.code, 'file-changed');
+  assert.equal(fake.read('/home/tester/work/README.md'), '# changed elsewhere\n');
+});
+
+test('a truncated read is flagged and a directory is not a file', async () => {
+  const { handler } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  const clipped = await invoke(handler, 'GET', '/remote-ctx/api/file?id=lan&path=README.md&limit=3');
+  assert.equal(clipped.status, 200);
+  assert.equal(clipped.body.data.truncated, true);
+  assert.equal(clipped.body.data.text, '# r');
+
+  const directory = await invoke(handler, 'GET', '/remote-ctx/api/file?id=lan&path=src');
+  assert.equal(directory.status, 400);
+  assert.equal(directory.body.error.code, 'path-is-directory');
+
+  const missing = await invoke(handler, 'GET', '/remote-ctx/api/file?id=lan&path=ghost.txt');
+  assert.equal(missing.status, 404);
+  assert.equal(missing.body.error.code, 'REMOTE_NOT_FOUND');
+});
+
+test('a read-only install refuses a panel save', async () => {
+  const { handler } = makeApi({ allowRemoteWrite: false });
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  const denied = await invoke(handler, 'POST', '/remote-ctx/api/file', {
+    id: 'lan',
+    path: 'README.md',
+    content: 'x\n',
+  });
+  assert.equal(denied.status, 403);
+  assert.equal(denied.body.error.code, 'REMOTE_WRITE_DISABLED');
 });

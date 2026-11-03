@@ -155,7 +155,8 @@ The browser half registers one left-sidebar entry (`sidebar.panellist`,
 order 47) and one main page, following the ModuleLoader contract. The page is
 a two-column workbench (`grid-template-columns: 288px minmax(0, 1fr)`): the
 rail lists `~/.ssh/config` hosts and saved connections, the detail column holds
-one of five views — `new` (the default), `detail`, `edit`, `browse`, `mirror`.
+one of six views — `new` (the default), `detail`, `edit`, `browse`, `file`,
+`mirror`.
 Selecting a host only sets form state; no request is sent until the form is
 submitted, so browsing the rail can never create a record:
 
@@ -175,6 +176,8 @@ It only calls `/remote-ctx/api` with same-origin `fetch`. Routes:
 | DELETE | `/api/connections?id=` | remove a record and its index |
 | POST | `/api/test` | open the connection and list the root |
 | GET | `/api/browse?id=&path=` | one remote directory |
+| GET | `/api/file?id=&path=&limit=` | one remote file: text, size, mtime, truncated, binary |
+| POST | `/api/file` | atomic write; a stale `expectedMtimeMs` is `409 file-changed` |
 | GET/POST | `/api/index?id=` | read the summary / rebuild |
 | POST | `/api/sync` | plan, and optionally apply, a push or pull |
 
