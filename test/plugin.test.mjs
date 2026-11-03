@@ -43,6 +43,10 @@ function makeStack() {
   };
   const registry = { created: [], async create(path, title) { this.created.push({ path, title }); return { id: 'w1', path, title }; } };
   const registered = new Map();
+  const restricted = [];
+  const guards = [];
+  const listeners = new Map();
+  const sessionTools = { restrict(filter) { restricted.push(filter); return () => {}; } };
   const ctx = {
     tools: {
       register(definition) {
@@ -50,6 +54,18 @@ function makeStack() {
         registered.set(definition.name, definition);
         return () => registered.delete(definition.name);
       },
+      guard(guard) {
+        guards.push(guard);
+        return () => {};
+      },
+    },
+    // The host dispatches agent/created with the new session; the gate is
+    // registered with { global: true }, so this listener is the real path.
+    on(name, listener) {
+      const list = listeners.get(name) ?? [];
+      list.push(listener);
+      listeners.set(name, list);
+      return () => {};
     },
   };
   plugin.apply(ctx, config, { adapterFor: () => fake.adapter, registry: () => registry });
@@ -58,7 +74,12 @@ function makeStack() {
     if (!definition) throw new Error(`tool ${name} is not registered`);
     return definition.execute(args, { agent: {}, signal: new AbortController().signal });
   };
-  return { fake, registered, registry, call };
+  const emitAgentCreated = (cwd) => {
+    const agent = { session: { header: { cwd } }, ctx: { tools: sessionTools } };
+    for (const listener of listeners.get('agent/created') ?? []) listener({ agent });
+    return agent;
+  };
+  return { fake, registered, registry, call, restricted, guards, emitAgentCreated };
 }
 
 test('plugin exports the cordis contract', () => {
@@ -67,7 +88,7 @@ test('plugin exports the cordis contract', () => {
   assert.equal(typeof plugin.apply, 'function');
 });
 
-test('apply registers the seven remote_ctx_* tools', () => {
+test('apply registers the eight remote_ctx_* tools', () => {
   const { registered } = makeStack();
   assert.deepEqual([...registered.keys()].sort(), [
     'remote_ctx_connections',
@@ -79,6 +100,45 @@ test('apply registers the seven remote_ctx_* tools', () => {
     'remote_ctx_workspace',
     'remote_ctx_write',
   ]);
+});
+
+test('a local workspace session is denied the remote tools', () => {
+  const { emitAgentCreated, restricted } = makeStack();
+  emitAgentCreated(join(workspace, 'local-checkout'));
+  assert.equal(restricted.length, 1);
+  assert.deepEqual(restricted[0].deny, [
+    'remote_ctx_connections',
+    'remote_ctx_workspace',
+    'remote_ctx_ls',
+    'remote_ctx_read',
+    'remote_ctx_write',
+    'remote_ctx_index',
+    'remote_ctx_find',
+    'remote_ctx_sync',
+  ]);
+});
+
+test('a remote workspace session keeps the remote tools', async () => {
+  const { call, emitAgentCreated, restricted } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+  emitAgentCreated(created.workspacePath);
+  assert.equal(restricted.length, 0);
+});
+
+test('the dispatch guard refuses a remote tool outside a remote workspace', async () => {
+  const { call, emitAgentCreated, guards } = makeStack();
+  assert.equal(guards.length, 1);
+
+  const localAgent = emitAgentCreated(join(workspace, 'local-checkout'));
+  assert.match(guards[0]({ name: 'remote_ctx_read', agent: localAgent }), /remote workspace/);
+  // A tool this plugin does not own is never the guard's business.
+  assert.equal(guards[0]({ name: 'read_file', agent: localAgent }), undefined);
+
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+  const remoteAgent = emitAgentCreated(created.workspacePath);
+  assert.equal(guards[0]({ name: 'remote_ctx_read', agent: remoteAgent }), undefined);
 });
 
 test('a connection can be added, listed, and never echoes the password', async () => {

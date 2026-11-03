@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A local workspace was offered the remote tools.** Every `remote_ctx_*` tool
+  was registered globally, so a session whose workspace was an ordinary local
+  directory still saw all eight in its tool list — and could be steered into the
+  remote plugin for files that are local. Tools are now scoped per session:
+  `agent/created` restricts the eight names for any session whose cwd is not an
+  anchor (`anchorContaining`, a directory carrying `remote-ctx.json`), and a
+  dispatch guard re-checks the cwd at call time because `cd` can move the
+  session after creation. The panel is unchanged and remains the management
+  surface — mirroring a local workspace onto the target starts there.
+
 ### Added
 
 - **Panel search over the cached index, with its age in view.** The browse view

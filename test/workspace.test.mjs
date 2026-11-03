@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { anchorName, anchorPath, createAnchor, entriesBelow, isPlaceholder, listAnchors, materializeListing, readAnchor, writePlaceholder } from '../lib/workspace.mjs';
+import { anchorContaining, anchorName, anchorPath, createAnchor, entriesBelow, isPlaceholder, listAnchors, materializeListing, readAnchor, writePlaceholder } from '../lib/workspace.mjs';
 
 const workspace = mkdtempSync(join(tmpdir(), 'dsh-remote-ctx-workspace-'));
 test.after(() => rmSync(workspace, { recursive: true, force: true }));
@@ -145,4 +145,22 @@ test('listAnchors ignores directories that carry no marker', () => {
   assert.equal(anchors.some((anchor) => anchor.path === created.path), true);
   assert.equal(anchors.some((anchor) => anchor.path.endsWith('not-an-anchor')), false);
   assert.equal(anchors.find((anchor) => anchor.path === created.path).marker.connectionId, 'lan-box');
+});
+
+test('anchorContaining recognises the anchor above a subdirectory, and nothing else', () => {
+  const anchor = createAnchor({ workspacesDir: workspace, connection, remotePath: '/srv/work/contained' });
+  const child = join(anchor.path, 'src', 'deep');
+  mkdirSync(child, { recursive: true });
+
+  // The session cwd is normally the anchor itself; a `cd` may leave it below.
+  assert.equal(anchorContaining(anchor.path, workspace)?.path, anchor.path);
+  assert.equal(anchorContaining(child, workspace)?.path, anchor.path);
+
+  // Local directories, the workspaces root and prefix siblings are not anchors.
+  assert.equal(anchorContaining(join(workspace, 'local-checkout'), workspace), undefined);
+  assert.equal(anchorContaining(workspace, workspace), undefined);
+  assert.equal(anchorContaining(join(workspace, '..'), workspace), undefined);
+  assert.equal(anchorContaining(`${anchor.path}-other`, workspace), undefined);
+  assert.equal(anchorContaining('', workspace), undefined);
+  assert.equal(anchorContaining(anchor.path, ''), undefined);
 });

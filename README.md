@@ -83,6 +83,11 @@ installed side by side.
   Re-running the tool, `remote_ctx_index`, any `remote_ctx_write`, or a sync
   push refreshes that listing, so a file created later on the target becomes
   mentionable.
+- **Tools stay in the remote workspace.** The eight `remote_ctx_*` tools are
+  scoped to sessions whose working directory is an anchor: a local workspace
+  never sees them, so its own files cannot be routed through the remote plugin
+  by accident. The panel is still available everywhere — that is where a local
+  workspace gets pushed to the target.
 - **Your `~/.ssh/config` is the source.** The panel lists every concrete `Host`
   with its hostname, user, port and key; picking one fills the connection form —
   nothing you already configured has to be retyped.
@@ -281,7 +286,7 @@ with `$DSH_HOME/dsh-ssh-connections.json`:
 └──────────────────────────────┘
 ```
 
-The host half wires seven tools over the `tools` service and, when a web server
+The host half wires eight tools over the `tools` service and, when a web server
 exists, mounts one prefix route (`/remote-ctx`) for the panel. A pooled
 `RemoteFs` per connection owns the SFTP channel; everything above it — walker,
 indexer, mirror, tools, HTTP — is transport-agnostic, which is why the test suite
@@ -292,6 +297,7 @@ Details in [`docs/architecture.md`](./docs/architecture.md).
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
+| a session has no `remote_ctx_*` tools | the workspace is an ordinary local directory; the tools are scoped to anchor workspaces | open the remote workspace **创建为工作区** created; from a local workspace, push to the target with the panel's **镜像** |
 | `SSH_AUTH_FAILED` — server rejected every method | the imported key is not in `authorized_keys`, the password is wrong, or the account may not log in | run the same `ssh user@host` from a terminal: if it fails too, fix the server (`ssh-copy-id`) or edit the connection and switch to password |
 | `SSH_KEY_UNREADABLE` — key not found / passphrase | the key path is on **this** machine; an encrypted key needs its passphrase | correct the path, or fill 密钥口令 in the edit form |
 | `SSH_AGENT_MISSING` | agent auth needs `SSH_AUTH_SOCK`; Windows OpenSSH agent is a named pipe ssh2 cannot open | use key or password auth |

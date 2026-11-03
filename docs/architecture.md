@@ -22,7 +22,7 @@ tools (lib/index.js) ─┬─ HTTP api (lib/api.mjs) ── browser panel (lib/
 
 | Module | Responsibility | Knows about SSH? |
 | --- | --- | --- |
-| `lib/index.js` | Cordis contract, seven tools, panel mounting | no |
+| `lib/index.js` | Cordis contract, eight tools, workspace gate, panel mounting | no |
 | `lib/api.mjs` | Prefix route `/remote-ctx`, request validation | no |
 | `lib/client.js` | Sidebar entry + page; fetch only | no |
 | `lib/context.mjs` | Connection records, pooled `RemoteFs`, index lifecycle | no |
@@ -232,6 +232,24 @@ anchor name is a hash of (connection, remote path), so the panel and the tool
 converge on one workspace. Without the registry the anchor is still created and
 the caller is told to add it through the workspace picker.
 
+### The tools belong to the remote workspace
+
+`lib/index.js` registers the eight tools globally — the registry has no
+per-workspace registration form — but it does not leave them visible
+everywhere. A session whose cwd is not an anchor (a directory carrying
+`remote-ctx.json`, found by `anchorContaining`) gets them removed:
+
+- at `agent/created`, the plugin calls `tools.restrict({ deny })` through the
+  new agent's own scope, so the schemas never reach that session's model;
+- a plain-context `tools.guard` re-checks the cwd on every `remote_ctx_*`
+  dispatch, because a restriction is applied once while `cd` can move a session
+  into or out of an anchor afterwards.
+
+The panel is not gated: it is a management surface, not a file channel, and
+mirroring a local workspace onto the target starts from it. This is why the
+anchor's `@` listing and `remote_ctx_*` tools are scoped to the workspace that
+`remote_ctx_workspace` created, while the sidebar entry is available everywhere.
+
 ## Testing
 
 | File | Covers |
@@ -244,7 +262,7 @@ the caller is told to add it through the workspace picker.
 | `test/ssh-config.test.mjs` | `Host` parsing, first-wins, wildcards, Include, concrete-host list |
 | `test/dev-link.test.mjs` | profile wiring: dependency + bundle entry, idempotent, removable |
 | `test/api.test.mjs` | the seven panel routes, 400/404 mapping, secret boundary |
-| `test/plugin.test.mjs` | cordis contract, seven tools, end-to-end through every layer |
+| `test/plugin.test.mjs` | cordis contract, eight tools, workspace gate (visible/denied/guard), end-to-end through every layer |
 
 `test/stub/loader.mjs` resolves `@deepseek-ai/dsh-tools` to a contract stub, and
 `test/fake-remote.mjs` implements the six adapter methods over a `Map`.
