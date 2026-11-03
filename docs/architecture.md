@@ -129,6 +129,11 @@ A write through `remote_ctx_write` drops the cached index for that connection:
 a stale index that still lists a file is a smaller lie than an index that
 searches old content.
 
+The panel shows `builtAt` as an age (`3 分钟前`). `GET /api/find` reports
+`stale: true` once that age passes 30 minutes (`INDEX_STALE_MS` in
+`lib/api.mjs`, mirrored in `lib/client.js`), and a rebuild re-runs the search
+that is open.
+
 ## Mirror semantics
 
 `planPush(local, remoteIndex)` compares each local file against its remote
@@ -179,6 +184,7 @@ It only calls `/remote-ctx/api` with same-origin `fetch`. Routes:
 | GET | `/api/file?id=&path=&limit=` | one remote file: text, size, mtime, truncated, binary |
 | POST | `/api/file` | atomic write; a stale `expectedMtimeMs` is `409 file-changed` |
 | GET/POST | `/api/index?id=` | read the summary / rebuild |
+| GET | `/api/find?id=&query=&mode=&type=&limit=` | search the cached index; reports `missing` and `stale` |
 | POST | `/api/sync` | plan, and optionally apply, a push or pull |
 
 No route accepts a path without going through `RemoteFs.resolve`, and no

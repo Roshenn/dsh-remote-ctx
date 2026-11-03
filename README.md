@@ -95,7 +95,9 @@ installed side by side.
   than overwritten; a truncated or binary read stays read-only.
 - **Local index, remote tree.** The remote tree is walked once and cached under
   `$DSH_HOME/remote-ctx/index/`; search then runs locally, with content grep
-  going back over the wire only for plausible text files.
+  going back over the wire only for plausible text files. The panel's search box
+  queries that same cache, shows its age, labels it stale after 30 minutes and
+  offers a rebuild.
 - **Atomic writes.** Write to a temporary name, rename into place; a failed
   write never leaves a half-written file.
 - **A mirror that cannot delete.** Push local → remote or pull remote → local;
@@ -205,7 +207,8 @@ edits, and `--install` runs the profile `pnpm install` for you.
    pressed.
 2. Press **Test** — a successful test reports the remote home and root.
 3. Press **Browse** to walk the remote tree, then **Index here** to cache it.
-   Click any file to preview it, edit it and save it in place.
+   Click any file to preview it, edit it and save it in place; search the cached
+   index from the same view.
 4. Ask in chat: *"What files are in the remote workspace? Find the config that
    mentions DATABASE_URL."*
 5. To copy the current local workspace over, press **Mirror** with `dry run`

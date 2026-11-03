@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Panel search over the cached index, with its age in view.** The browse view
+  gained a search box that queries the local index (`GET /api/find`) and lists
+  path/name matches; a result opens the file in the panel or navigates to its
+  directory. The index age is shown next to the results and in the connection
+  detail, and past 30 minutes it is labelled as possibly stale; a missing or
+  stale index offers a one-click rebuild that re-runs the open search.
+
 - **A remote file opens in the panel.** Clicking a file in the directory
   browser now opens it in place: the panel reads it over SFTP (bounded by
   `maxReadBytes`, with a truncation flag and a NUL-byte check for binaries),

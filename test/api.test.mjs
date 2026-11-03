@@ -333,3 +333,38 @@ test('a read-only install refuses a panel save', async () => {
   assert.equal(denied.status, 403);
   assert.equal(denied.body.error.code, 'REMOTE_WRITE_DISABLED');
 });
+
+test('the find route searches the cached index and reports its age', async () => {
+  const { handler } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  const before = await invoke(handler, 'GET', '/remote-ctx/api/find?id=lan&query=app');
+  assert.equal(before.status, 200);
+  assert.equal(before.body.data.missing, true);
+  assert.deepEqual(before.body.data.entries, []);
+
+  await invoke(handler, 'POST', '/remote-ctx/api/index', { id: 'lan' });
+  const found = await invoke(handler, 'GET', '/remote-ctx/api/find?id=lan&query=app');
+  assert.equal(found.status, 200);
+  assert.equal(found.body.data.missing, false);
+  assert.deepEqual(found.body.data.entries.map((entry) => entry.path), ['src/app.js']);
+  assert.equal(found.body.data.stale, false);
+  assert.equal(typeof found.body.data.summary.ageMs, 'number');
+});
+
+test('find requires a query and name mode matches the file name only', async () => {
+  const { handler } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  const missingQuery = await invoke(handler, 'GET', '/remote-ctx/api/find?id=lan');
+  assert.equal(missingQuery.status, 400);
+  assert.equal(missingQuery.body.error.code, 'query-missing');
+
+  await invoke(handler, 'POST', '/remote-ctx/api/index', { id: 'lan' });
+  const byName = await invoke(handler, 'GET', '/remote-ctx/api/find?id=lan&query=README.md&mode=name');
+  assert.deepEqual(byName.body.data.entries.map((entry) => entry.path), ['README.md']);
+  const directories = await invoke(handler, 'GET', '/remote-ctx/api/find?id=lan&query=src&type=dir');
+  assert.deepEqual(directories.body.data.entries.map((entry) => entry.path), ['src']);
+});
