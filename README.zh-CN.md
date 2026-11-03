@@ -11,7 +11,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.1--rc.1-4B32C3?style=flat-square)](#兼容性)
 [![node](https://img.shields.io/badge/node-%3E%3D22.13-339933?style=flat-square&logo=node.js&logoColor=white)](#兼容性)
-[![tests](https://img.shields.io/badge/tests-53%20passing-brightgreen?style=flat-square)](./test)
+[![tests](https://img.shields.io/badge/tests-109%20passing-brightgreen?style=flat-square)](./test)
 
 </div>
 
@@ -270,7 +270,7 @@ host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一
 
 ## 状态
 
-`0.2.0` —— host 半、面板、索引与镜像均已实现，53 个测试覆盖。刻意不做的事：
+`0.2.0` —— host 半、面板、索引与镜像均已实现，109 个测试覆盖。刻意不做的事：
 
 - 远端命令执行 / PTY（用 `dsh-remote-ssh`）；
 - 镜像中的删除；
@@ -280,7 +280,7 @@ host 半在 `tools` 服务上注册七个工具；发现 web server 时再挂一
 ## 开发
 
 ```bash
-node --test "test/*.test.mjs"   # 53 个测试，零依赖、零网络
+node --test "test/*.test.mjs"   # 109 个测试，零依赖、零网络
 node scripts/check.mjs          # 包清单 / patch / exports 自检
 node scripts/smoke.mjs          # 打印解析后的配置与连接
 ```

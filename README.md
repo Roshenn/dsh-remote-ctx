@@ -11,7 +11,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.1--rc.1-4B32C3?style=flat-square)](#compatibility)
 [![node](https://img.shields.io/badge/node-%3E%3D22.13-339933?style=flat-square&logo=node.js&logoColor=white)](#compatibility)
-[![tests](https://img.shields.io/badge/tests-53%20passing-brightgreen?style=flat-square)](./test)
+[![tests](https://img.shields.io/badge/tests-109%20passing-brightgreen?style=flat-square)](./test)
 
 </div>
 
@@ -346,7 +346,7 @@ ecosystem, and says so:
 ## Status
 
 `0.2.0` — the host half, the panel, the index and the mirror are implemented and
-covered by 53 tests. What is deliberately missing:
+covered by 109 tests. What is deliberately missing:
 
 - remote command execution / PTY (use `dsh-remote-ssh`);
 - deletion in the mirror;
@@ -356,7 +356,7 @@ covered by 53 tests. What is deliberately missing:
 ## Development
 
 ```bash
-node --test "test/*.test.mjs"   # 53 tests, no dependencies, no network
+node --test "test/*.test.mjs"   # 109 tests, no dependencies, no network
 node scripts/check.mjs          # package manifest / patch / export sanity
 node scripts/smoke.mjs          # print the resolved config and connections
 ```
