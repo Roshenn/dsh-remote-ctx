@@ -81,6 +81,15 @@ test('translateConnectError maps ssh2 wording onto codes and hints', () => {
   assert.match(network.message, /root@10\.1\.64\.4:22/);
 });
 
+test('a host key that no longer matches the pin is an actionable change error', () => {
+  const connection = { ...base, hostFingerprint: 'SHA256:old' };
+  const changed = translateConnectError(connection, new Error('Host denied (verification failed)'), 'SHA256:new');
+  assert.equal(changed.code, 'SSH_HOST_KEY_CHANGED');
+  assert.match(changed.message, /SHA256:old/);
+  assert.match(changed.message, /SHA256:new/);
+  assert.match(changed.message, /re-pin/);
+});
+
 test('agent sockets expand env vars and fall back to SSH_AUTH_SOCK', () => {
   const env = { SSH_AUTH_SOCK: '/tmp/agent.sock', HOME: '/home/demo' };
   assert.equal(expandEnv('$SSH_AUTH_SOCK', env), '/tmp/agent.sock');

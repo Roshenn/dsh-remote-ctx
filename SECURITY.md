@@ -39,7 +39,10 @@ every connection id and path.
 ## What it does not guarantee
 
 - **Host-key verification is opt-in.** Without `hostFingerprint`, `ssh2` accepts
-  any host key. Pin the fingerprint for anything beyond a trusted LAN.
+  any host key. The connection test reports the fingerprint the target
+  presented and the panel offers to pin it; a pinned key that later changes
+  fails with `SSH_HOST_KEY_CHANGED` instead of connecting. Pin every host
+  outside a trusted LAN, and only after verifying the fingerprint out of band.
 - **The remote root is a path, not a sandbox.** A server that resolves symlinks
   can point a path outside the root; the plugin confines the path string, not
   the target's filesystem semantics. Read-only keys or a restricted sftp

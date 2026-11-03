@@ -207,6 +207,32 @@ test('the panel connect flow: save a connection, then test it', async () => {
   assert.equal(tested.body.data.entries, 2);
 });
 
+test('the test route reports the host key, and trusting it pins it without losing the secret', async () => {
+  const { handler, fake } = makeApi();
+  await invoke(handler, 'POST', '/remote-ctx/api/connections', {
+    connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
+  });
+  fake.adapter.hostFingerprint = 'SHA256:first-seen';
+
+  const tested = await invoke(handler, 'POST', '/remote-ctx/api/test', { id: 'lan' });
+  assert.equal(tested.body.data.fingerprint, 'SHA256:first-seen');
+  assert.equal(tested.body.data.pinned, false);
+
+  const missing = await invoke(handler, 'POST', '/remote-ctx/api/trust', { id: 'lan' });
+  assert.equal(missing.status, 400);
+  assert.equal(missing.body.error.code, 'fingerprint-missing');
+
+  const pinned = await invoke(handler, 'POST', '/remote-ctx/api/trust', { id: 'lan', fingerprint: 'SHA256:first-seen' });
+  assert.equal(pinned.status, 200);
+  assert.equal(pinned.body.data.connection.hostFingerprint, 'SHA256:first-seen');
+  // Pinning must not wipe the password: normalizeConnection takes it from `previous`.
+  assert.equal(pinned.body.data.connection.auth.kind, 'password');
+  assert.equal(pinned.body.data.connection.auth.hasPassword, true);
+
+  const again = await invoke(handler, 'POST', '/remote-ctx/api/test', { id: 'lan' });
+  assert.equal(again.body.data.pinned, true);
+});
+
 test('a remote directory can be turned into a workspace', async () => {
   const { handler, registry } = makeApi();
   await invoke(handler, 'POST', '/remote-ctx/api/connections', {

@@ -20,6 +20,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Host-key trust is explicit.** A connection test now reports the `SHA256:`
+  fingerprint the target presented (the `remote_ctx_connections` test output and
+  `POST /api/test` both carry it), and the connection detail offers
+  **信任并固定指纹** (`POST /api/trust`). Trusting a fingerprint stores it on the
+  connection without touching the stored password or passphrase, and drops the
+  pooled session so the next connect is verified. A pinned key that no longer
+  matches fails as `SSH_HOST_KEY_CHANGED`, naming the pinned and presented
+  fingerprints, instead of a generic ssh2 error.
+
 - **Panel search over the cached index, with its age in view.** The browse view
   gained a search box that queries the local index (`GET /api/find`) and lists
   path/name matches; a result opens the file in the panel or navigates to its

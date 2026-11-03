@@ -103,6 +103,19 @@ A rejected method becomes `SSH_AUTH_FAILED` with the target, the method and the
 fix; ssh2 own "All configured authentication methods failed" is never surfaced
 alone. `test/ssh-auth.test.mjs` drives these paths against an in-process ssh2
 server and skips when the dependency is absent.
+
+### Host-key trust
+
+The adapter always installs a `hostVerifier`: it records the `SHA256:` the
+server presented, and — when the connection pins `hostFingerprint` — rejects a
+mismatch. An unpinned connection accepts the key (ssh2's default) but the panel
+can now show what it accepted: `POST /api/test` returns `fingerprint` and
+`pinned`, and `POST /api/trust` stores the shown value through
+`normalizeConnection`, which keeps the stored password/passphrase. Trusting
+closes the pooled session, so the pin governs the next connection instead of the
+one that was implicitly trusted. A refused key maps to `SSH_HOST_KEY_CHANGED`
+with both fingerprints — an interception attempt and a planned re-key need the
+same information to be told apart.
 ## Index format
 
 `$DSH_HOME/remote-ctx/index/<connectionId>.json`:
@@ -179,7 +192,8 @@ It only calls `/remote-ctx/api` with same-origin `fetch`. Routes:
 | POST | `/api/workspace` | create an anchor and register it as a DSH workspace |
 | POST | `/api/ssh-config/import` | create a connection from one Host alias |
 | DELETE | `/api/connections?id=` | remove a record and its index |
-| POST | `/api/test` | open the connection and list the root |
+| POST | `/api/test` | open the connection and list the root, with the presented host key |
+| POST | `/api/trust` | pin the host key the test reported, keeping the stored secret |
 | GET | `/api/browse?id=&path=` | one remote directory |
 | GET | `/api/file?id=&path=&limit=` | one remote file: text, size, mtime, truncated, binary |
 | POST | `/api/file` | atomic write; a stale `expectedMtimeMs` is `409 file-changed` |
@@ -260,8 +274,9 @@ anchor's `@` listing and `remote_ctx_*` tools are scoped to the workspace that
 | `test/mirror.test.mjs` | local walk, push/pull plans, application both ways |
 | `test/workspace.test.mjs` | anchor naming, marker + AGENTS.md, idempotency, single-file placeholder upsert, root-walk slicing |
 | `test/ssh-config.test.mjs` | `Host` parsing, first-wins, wildcards, Include, concrete-host list |
+| `test/ssh2-adapter.test.mjs` | error wording, host-key change mapping, the agent-error listener staying alive |
 | `test/dev-link.test.mjs` | profile wiring: dependency + bundle entry, idempotent, removable |
-| `test/api.test.mjs` | the seven panel routes, 400/404 mapping, secret boundary |
+| `test/api.test.mjs` | the panel routes (including `/api/test` fingerprint and `/api/trust`), 400/404 mapping, secret boundary |
 | `test/plugin.test.mjs` | cordis contract, eight tools, workspace gate (visible/denied/guard), end-to-end through every layer |
 
 `test/stub/loader.mjs` resolves `@deepseek-ai/dsh-tools` to a contract stub, and

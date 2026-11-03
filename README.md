@@ -88,6 +88,10 @@ installed side by side.
   never sees them, so its own files cannot be routed through the remote plugin
   by accident. The panel is still available everywhere — that is where a local
   workspace gets pushed to the target.
+- **Host-key trust is a decision, not a default.** The connection test reports
+  the `SHA256:` fingerprint the target presented, and the detail view offers
+  **信任并固定指纹**. Once pinned, a changed host key fails with
+  `SSH_HOST_KEY_CHANGED` naming both fingerprints instead of connecting.
 - **Your `~/.ssh/config` is the source.** The panel lists every concrete `Host`
   with its hostname, user, port and key; picking one fills the connection form —
   nothing you already configured has to be retyped.
@@ -297,6 +301,7 @@ Details in [`docs/architecture.md`](./docs/architecture.md).
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
+| `SSH_HOST_KEY_CHANGED` — pinned host key no longer matches | the host was re-keyed or reinstalled, or something is intercepting the connection | check the new fingerprint out of band, then press **改用该指纹** in the detail view; treat it as an attack if it does not match |
 | a session has no `remote_ctx_*` tools | the workspace is an ordinary local directory; the tools are scoped to anchor workspaces | open the remote workspace **创建为工作区** created; from a local workspace, push to the target with the panel's **镜像** |
 | `SSH_AUTH_FAILED` — server rejected every method | the imported key is not in `authorized_keys`, the password is wrong, or the account may not log in | run the same `ssh user@host` from a terminal: if it fails too, fix the server (`ssh-copy-id`) or edit the connection and switch to password |
 | `SSH_KEY_UNREADABLE` — key not found / passphrase | the key path is on **this** machine; an encrypted key needs its passphrase | correct the path, or fill 密钥口令 in the edit form |
@@ -312,7 +317,10 @@ method stored on the connection and reports exactly what was refused.
 ## Safety boundaries
 
 - **Host keys:** without a pinned `hostFingerprint`, `ssh2` accepts any host key.
-  Pin it for anything outside a trusted LAN.
+  **测试连接** reports the fingerprint the target presented and the detail view
+  offers **信任并固定指纹**; a pinned key that later changes fails with
+  `SSH_HOST_KEY_CHANGED` rather than connecting. Pin every host outside a
+  trusted LAN, and only after checking the fingerprint out of band.
 - **Remote root is a path contract, not a server-side sandbox.** The plugin
   refuses paths that escape the root; it cannot override how the target resolves
   symlinks. Use a restricted key or a chrooted SFTP subsystem when that matters.
