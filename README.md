@@ -88,6 +88,11 @@ installed side by side.
   never sees them, so its own files cannot be routed through the remote plugin
   by accident. The panel is still available everywhere — that is where a local
   workspace gets pushed to the target.
+- **A workspace open is a refresh.** Opening a remote workspace re-walks the
+  target (same bounded walk as `remote_ctx_index`, at most once per anchor every
+  five minutes), so a file created on the other side becomes `@`-mentionable
+  without remembering to re-index; the connection detail has an **@ 清单**
+  button for an immediate refresh.
 - **Host-key trust is a decision, not a default.** The connection test reports
   the `SHA256:` fingerprint the target presented, and the detail view offers
   **信任并固定指纹**. Once pinned, a changed host key fails with

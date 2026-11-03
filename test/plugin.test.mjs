@@ -141,6 +141,32 @@ test('the dispatch guard refuses a remote tool outside a remote workspace', asyn
   assert.equal(guards[0]({ name: 'remote_ctx_read', agent: remoteAgent }), undefined);
 });
 
+test('opening a workspace refreshes its @ listing, and repeats only after the window', async () => {
+  const { call, emitAgentCreated, fake } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+  const late = join(created.workspacePath, 'late.txt');
+  assert.equal(existsSync(late), false);
+
+  // A file that appeared on the target after the workspace was registered.
+  fake.seed('/home/tester/work/late.txt', 'late\n');
+  emitAgentCreated(created.workspacePath);
+  const deadline = Date.now() + 2000;
+  while (!existsSync(late) && Date.now() < deadline) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(existsSync(late), true);
+  assert.match(readFileSync(late, 'utf8'), /remote file: \/home\/tester\/work\/late\.txt/);
+
+  // A second open inside the window does not walk again: the placeholder stays
+  // deleted until the next window, which is the documented staleness bound.
+  rmSync(late);
+  emitAgentCreated(created.workspacePath);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(existsSync(late), false);
+});
+
 test('a connection can be added, listed, and never echoes the password', async () => {
   const { call } = makeStack();
   const added = await call('remote_ctx_connections', {

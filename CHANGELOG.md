@@ -20,6 +20,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Opening a workspace refreshes its `@` listing.** A file created on the
+  target outside the plugin — a shell `touch`, another session's write, an
+  editor — stayed invisible to `@file` completion until `remote_ctx_index`, a
+  write, a push or a workspace re-create. A session that opens an anchor now
+  re-walks the connection (same bounded walk as `remote_ctx_index`), at most
+  once per anchor per five minutes, without delaying session creation; the
+  connection detail gained an **@ 清单** button for an immediate refresh.
+
 - **Host-key trust is explicit.** A connection test now reports the `SHA256:`
   fingerprint the target presented (the `remote_ctx_connections` test output and
   `POST /api/test` both carry it), and the connection detail offers

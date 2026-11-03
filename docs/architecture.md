@@ -227,8 +227,11 @@ starting with `[dsh-remote-ctx] remote file: <remote path>`, and reserved names
 (`AGENTS.md`, `remote-ctx.json`) are skipped. That is what makes DSH's local
 `@file` completion and the workspace panel show remote paths at all.
 
-Refresh is not a timer: it happens on the actions that change the remote tree or
-are asked to rebuild it. `remote_ctx_index` reuses its own walk for every anchor
+Refresh is mostly event-driven: it happens on the actions that change the remote
+tree or are asked to rebuild it, and when a session opens an anchor workspace —
+at most once per anchor per five minutes (`ANCHOR_REFRESH_TTL_MS` in
+`lib/index.js`), fired without delaying the session. `remote_ctx_index` reuses
+its own walk for every anchor
 of the connection (`refreshAnchors(id, { entries })`), so a re-index costs no
 second SFTP traversal; `remote_ctx_write` and a sync push upsert the one
 placeholder per created file (`upsertPlaceholders`, O(1)); re-running
