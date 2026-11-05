@@ -245,8 +245,8 @@ test('a remote directory can be turned into a workspace', async () => {
   assert.equal(created.body.data.created, true);
   assert.equal(created.body.data.remotePath, '/home/tester/work/src');
   assert.ok(existsSync(join(created.body.data.workspacePath, 'AGENTS.md')));
-  assert.equal(created.body.data.listing.files, 1);
-  assert.ok(existsSync(join(created.body.data.workspacePath, 'app.js')));
+  assert.equal(existsSync(join(created.body.data.workspacePath, 'app.js')), false, 'the anchor holds no remote listing');
+  assert.equal(created.body.data.pruned, 0);
   assert.equal(registry.created.length, 1);
   assert.match(registry.created[0].title, /src$/);
 
@@ -255,22 +255,19 @@ test('a remote directory can be turned into a workspace', async () => {
   assert.equal(again.body.data.workspacePath, created.body.data.workspacePath);
 });
 
-test('a later index refresh adds files created after the workspace to the @ listing', async () => {
-  const { handler, fake } = makeApi();
+test('re-creating a workspace through the panel prunes an old placeholder listing', async () => {
+  const { handler } = makeApi();
   await invoke(handler, 'POST', '/remote-ctx/api/connections', {
     connection: { id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' },
   });
   const created = await invoke(handler, 'POST', '/remote-ctx/api/workspace', { id: 'lan', path: 'src' });
   const anchor = created.body.data.workspacePath;
-  assert.equal(existsSync(join(anchor, 'late.txt')), false);
 
-  // A file that appeared on the target after the workspace was registered —
-  // the panel's index button is the refresh trigger.
-  fake.seed('/home/tester/work/src/late.txt', 'late\n');
-  const refreshed = await invoke(handler, 'POST', '/remote-ctx/api/index', { id: 'lan' });
-  assert.equal(refreshed.status, 200);
-  assert.ok(existsSync(join(anchor, 'late.txt')));
-  assert.match(readFileSync(join(anchor, 'late.txt'), 'utf8'), /remote file: \/home\/tester\/work\/src\/late\.txt/);
+  // What 0.2.0 wrote into every anchor: a marker file per remote entry.
+  writeFileSync(join(anchor, 'late.txt'), '[dsh-remote-ctx] remote file: /home/tester/work/src/late.txt\n');
+  const again = await invoke(handler, 'POST', '/remote-ctx/api/workspace', { id: 'lan', path: 'src' });
+  assert.equal(again.body.data.pruned, 1);
+  assert.equal(existsSync(join(anchor, 'late.txt')), false);
 });
 
 test('unknown routes and missing ids fail cleanly', async () => {

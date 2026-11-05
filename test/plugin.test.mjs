@@ -8,7 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { register } from 'node:module';
@@ -172,32 +172,6 @@ test('the dispatch guard refuses a remote tool outside a remote workspace', asyn
   assert.equal(guards[0]({ name: 'remote_ctx_read', agent: remoteAgent }), undefined);
 });
 
-test('opening a workspace refreshes its @ listing, and repeats only after the window', async () => {
-  const { call, emitAgentCreated, fake } = makeStack();
-  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
-  const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
-  const late = join(created.workspacePath, 'late.txt');
-  assert.equal(existsSync(late), false);
-
-  // A file that appeared on the target after the workspace was registered.
-  fake.seed('/home/tester/work/late.txt', 'late\n');
-  emitAgentCreated(created.workspacePath);
-  const deadline = Date.now() + 2000;
-  while (!existsSync(late) && Date.now() < deadline) {
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  assert.equal(existsSync(late), true);
-  assert.match(readFileSync(late, 'utf8'), /remote file: \/home\/tester\/work\/late\.txt/);
-
-  // A second open inside the window does not walk again: the placeholder stays
-  // deleted until the next window, which is the documented staleness bound.
-  rmSync(late);
-  emitAgentCreated(created.workspacePath);
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.equal(existsSync(late), false);
-});
-
 test('a connection can be added, listed, and never echoes the password', async () => {
   const { call } = makeStack();
   const added = await call('remote_ctx_connections', {
@@ -292,50 +266,54 @@ test('creates a workspace for a remote directory', async () => {
   assert.match(created.workspacePath, /workspaces/);
   assert.equal(registry.created.length, 1);
   assert.equal(registry.created[0].path, created.workspacePath);
-  assert.ok(existsSync(join(created.workspacePath, 'app.js')), 'the anchor lists the remote tree');
+  assert.deepEqual(readdirSync(created.workspacePath).sort(), ['AGENTS.md', 'remote-ctx.json'], 'the anchor stays empty: @ asks the host');
 });
 
-test('a write adds its @ placeholder without a walk', async () => {
-  const { call } = makeStack();
-  await call('remote_ctx_connections', {
-    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
-  });
+test('a write makes the new remote file mentionable without a walk', async () => {
+  const { call, emitAgentCreated, injections } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
   const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'src' });
+  const agent = emitAgentCreated(created.workspacePath);
+  const service = localFileReferenceService();
+  const overlay = mountFileReferences(injections, service);
 
-  await call('remote_ctx_write', { connection: 'lan', path: 'src/new.js', content: 'export const n = 2;\n' });
-  const placeholder = join(created.workspacePath, 'new.js');
-  assert.ok(existsSync(placeholder), 'the anchor lists the written file');
-  assert.match(readFileSync(placeholder, 'utf8'), /remote file: \/home\/tester\/work\/src\/new\.js/);
+  await call('remote_ctx_write', { connection: 'lan', path: 'created.js', content: 'export const n = 2;\n' }, agent);
+  const candidates = await service.list(agent, '');
+  assert.ok(candidates.some((candidate) => candidate.path === 'created.js'), '@ sees the file the tool just wrote');
+  overlay.dispose();
 });
 
-test('a re-index refreshes the @ listing for a file created outside the plugin', async () => {
-  const { fake, call } = makeStack();
-  await call('remote_ctx_connections', {
-    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
-  });
-  const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'src' });
-  assert.equal(existsSync(join(created.workspacePath, 'late.txt')), false);
-
-  // A shell `touch` on the target: no tool result, so only a walk can see it.
-  fake.seed('/home/tester/work/src/late.txt', 'late\n');
-  const indexed = await call('remote_ctx_index', { connection: 'lan', refresh: true });
-  assert.equal(indexed.anchors, 1);
-  assert.ok(existsSync(join(created.workspacePath, 'late.txt')));
-});
-
-test('a sync push adds the @ placeholders it created', async () => {
+test('re-creating a workspace prunes the placeholder listing of an older version', async () => {
   const { call } = makeStack();
-  await call('remote_ctx_connections', {
-    action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work',
-  });
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
   const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+
+  // What 0.2.0 left behind: one marker file per remote entry, plus a real edit.
+  writeFileSync(join(created.workspacePath, 'stale.txt'), '[dsh-remote-ctx] remote file: /home/tester/work/stale.txt\n');
+  writeFileSync(join(created.workspacePath, 'mine.txt'), 'local edit\n');
+  const again = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+
+  assert.equal(existsSync(join(created.workspacePath, 'stale.txt')), false);
+  assert.equal(readFileSync(join(created.workspacePath, 'mine.txt'), 'utf8'), 'local edit\n');
+  assert.match(again.text, /Pruned 1 placeholder/);
+});
+
+test('a sync push makes the pushed file mentionable', async () => {
+  const { call, emitAgentCreated, injections } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+  const agent = emitAgentCreated(created.workspacePath);
+  const service = localFileReferenceService();
+  const overlay = mountFileReferences(injections, service);
 
   const localRoot = join(workspace, 'push-anchor');
   mkdirSync(localRoot, { recursive: true });
   writeFileSync(join(localRoot, 'pushed.md'), 'pushed\n');
-  const applied = await call('remote_ctx_sync', { connection: 'lan', direction: 'push', localRoot });
+  const applied = await call('remote_ctx_sync', { connection: 'lan', direction: 'push', localRoot }, agent);
   assert.equal(applied.ok, true);
-  assert.ok(existsSync(join(created.workspacePath, 'pushed.md')), 'the pushed file is mentionable');
+  const candidates = await service.list(agent, '');
+  assert.ok(candidates.some((candidate) => candidate.path === 'pushed.md'), 'the pushed file is mentionable');
+  overlay.dispose();
 });
 
 test('sync push mirrors a local directory onto the remote, dry run first', async () => {
