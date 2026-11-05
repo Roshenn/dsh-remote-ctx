@@ -11,7 +11,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.1--rc.1-4B32C3?style=flat-square)](#compatibility)
 [![node](https://img.shields.io/badge/node-%3E%3D22.13-339933?style=flat-square&logo=node.js&logoColor=white)](#compatibility)
-[![tests](https://img.shields.io/badge/tests-116%20passing-brightgreen?style=flat-square)](./test)
+[![tests](https://img.shields.io/badge/tests-137%20passing-brightgreen?style=flat-square)](./test)
 
 </div>
 
@@ -37,8 +37,9 @@ workspace.
 ![The remote-context panel: SSH config hosts, saved connections, and a remote directory with the create-workspace button](docs/images/panel.png)
 
 In a workspace created from a remote directory, `@` completion lists the files
-that actually live on the target — the names come from the anchor's placeholder
-listing, and reading one still goes through `remote_ctx_read`.
+that actually live on the target — the plugin answers DSH's file-reference
+service from the remote tree over SFTP — and reading one still goes through
+`remote_ctx_read`.
 
 ![In a remote workspace, @ completion lists config.yaml and pipeline.ts from the remote src directory](docs/images/at-completion.png)
 
@@ -77,22 +78,21 @@ installed side by side.
   `remote_ctx_workspace` tool, registers a DSH workspace over a small local
   anchor. Its `AGENTS.md` tells the agent the files are remote and that
   `remote_ctx_*` tools reach them, so sessions, agents and history stay local
-  while the files stay on the target. The anchor also carries a placeholder
-  listing of the remote tree, so `@file` completion and the workspace file
-  panel show the remote paths; reading one goes through `remote_ctx_read`.
-  Re-running the tool, `remote_ctx_index`, any `remote_ctx_write`, or a sync
-  push refreshes that listing, so a file created later on the target becomes
-  mentionable.
+  while the files stay on the target. The anchor holds only `AGENTS.md` and the
+  mapping — `@` completion asks the host instead of reading a local copy, so a
+  file that appears on the target becomes mentionable on its own. Reading one
+  still goes through `remote_ctx_read`.
 - **Tools stay in the remote workspace.** The eight `remote_ctx_*` tools are
   scoped to sessions whose working directory is an anchor: a local workspace
   never sees them, so its own files cannot be routed through the remote plugin
   by accident. The panel is still available everywhere — that is where a local
   workspace gets pushed to the target.
-- **A workspace open is a refresh.** Opening a remote workspace re-walks the
-  target (same bounded walk as `remote_ctx_index`, at most once per anchor every
-  five minutes), so a file created on the other side becomes `@`-mentionable
-  without remembering to re-index; the connection detail has an **@ 清单**
-  button for an immediate refresh.
+- **`@` lists the live remote tree.** In an anchor workspace, completion is
+  answered from the target over SFTP, bounded four ways (3000 entries, 300
+  directories, a 4 s deadline, a 10 s cache). A slow or unreachable host falls
+  back to the local view and opens a 30 s cooldown, so typing never waits on an
+  SSH timeout; the connection detail has an **@ 刷新** button to drop the cache
+  immediately.
 - **Host-key trust is a decision, not a default.** The connection test reports
   the `SHA256:` fingerprint the target presented, and the detail view offers
   **信任并固定指纹**. Once pinned, a changed host key fails with
@@ -261,6 +261,14 @@ replaces a row's whole `config` object — restate every field you need.
 | `sshConfigFile` | `~/.ssh/config` | Where the left rail reads `Host` entries from |
 | `workspacesDir` | `$DSH_HOME/remote-ctx/workspaces` | Local anchors that back remote workspaces |
 | `allowRemoteWrite` | `true` | Set `false` for a read-only install |
+| `fileReference` | `true` | Answer `@` from the remote tree; `false` falls back to the local view |
+| `fileReferenceMaxResults` | `20` | Candidates returned per query |
+| `fileReferenceMaxEntries` | `3000` | Entries kept in one remote `@` index |
+| `fileReferenceMaxDirs` | `300` | Directories visited while building one index |
+| `fileReferenceTimeoutMs` | `4000` | Wall-clock budget for one index build |
+| `fileReferenceCacheTtlMs` | `10000` | How long a built index answers before it is rebuilt |
+| `fileReferenceFailureCooldownMs` | `30000` | Cooldown after a failed listing, during which the local view answers |
+| `fileReferenceExcludedDirectories` | `.git`, `node_modules`, … | Directory basenames a remote traversal skips |
 
 Connections can also come from a hand-written file. The flat shape is compatible
 with `$DSH_HOME/dsh-ssh-connections.json`:
@@ -317,7 +325,7 @@ Details in [`docs/architecture.md`](./docs/architecture.md).
 | `SSH_AGENT_MISSING` | agent auth needs `SSH_AUTH_SOCK`; Windows OpenSSH agent is a named pipe ssh2 cannot open | use key or password auth |
 | `SSH_AGENT_UNREACHABLE` | the configured agent socket does not exist (a literal `$SSH_AUTH_SOCK` is expanded first, but the agent may be stopped) | `eval "$(ssh-agent)"` and `ssh-add ~/.ssh/id_ed25519`, or switch the connection to key auth |
 | `SSH_SFTP_UNAVAILABLE` | the server closed the SFTP subsystem | enable `Subsystem sftp` in `sshd_config` |
-| `@` only offers `AGENTS.md` and `remote-ctx.json` | the workspace anchor has no listing, or the remote walk was truncated | press **创建为工作区** again on the same directory to rebuild the listing; raise `maxIndexFiles` if it reports truncation |
+| `@` offers no remote files | the connection is not open, the host failed and is cooling down, or `fileReference` is `false` | open the workspace once so the connection is pooled; look for `remote @ completion failed` in the log; re-enable `fileReference` |
 | timeout on a LAN host | wrong network, or the VPN is down | check `ssh user@host` from the same machine |
 
 To see what a server allows: `ssh -v user@host true` prints
@@ -369,7 +377,7 @@ ecosystem, and says so:
 ## Status
 
 `0.2.0` — the host half, the panel, the index and the mirror are implemented and
-covered by 116 tests. What is deliberately missing:
+covered by 137 tests. What is deliberately missing:
 
 - remote command execution / PTY (use `dsh-remote-ssh`);
 - deletion in the mirror;
@@ -379,7 +387,7 @@ covered by 116 tests. What is deliberately missing:
 ## Development
 
 ```bash
-node --test "test/*.test.mjs"   # 116 tests, no dependencies, no network
+node --test "test/*.test.mjs"   # 137 tests, no dependencies, no network
 node scripts/check.mjs          # package manifest / patch / export sanity
 node scripts/smoke.mjs          # print the resolved config and connections
 ```

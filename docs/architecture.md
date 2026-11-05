@@ -229,27 +229,41 @@ when the host exposes that optional service. The service is captured through
 `ctx.inject(['workspaceRegistry'], …)` at apply time — a plain property read or
 `ctx.get` does not resolve a service the plugin never declared, and a static
 `inject` entry would make the whole plugin wait on hosts without workspaces. The
-anchor also receives a **placeholder listing** of the remote tree: the remote
-walk yields directories and files, each file becomes a two-line text file
-starting with `[dsh-remote-ctx] remote file: <remote path>`, and reserved names
-(`AGENTS.md`, `remote-ctx.json`) are skipped. That is what makes DSH's local
-`@file` completion and the workspace panel show remote paths at all.
+anchor itself stays empty: it holds the instructions and the mapping, never the
+workspace's files.
 
-Refresh is mostly event-driven: it happens on the actions that change the remote
-tree or are asked to rebuild it, and when a session opens an anchor workspace —
-at most once per anchor per five minutes (`ANCHOR_REFRESH_TTL_MS` in
-`lib/index.js`), fired without delaying the session. `remote_ctx_index` reuses
-its own walk for every anchor
-of the connection (`refreshAnchors(id, { entries })`), so a re-index costs no
-second SFTP traversal; `remote_ctx_write` and a sync push upsert the one
-placeholder per created file (`upsertPlaceholders`, O(1)); re-running
-`remote_ctx_workspace` re-walks the whole workspace. A placeholder is overwritten
-only while it still starts with the marker, so a real local edit survives. A
-file created on the target outside all of those — a shell `touch`, an editor —
-becomes mentionable after the next refresh trigger. Nothing is ever deleted:
-placeholders for remote files that disappeared stay until the user deletes
-them, because a mirror that removes files is a different product. Content is
-never mirrored — reading still goes through `remote_ctx_read`.
+### Remote `@` completion
+
+DSH resolves `@` candidates through `ctx.fileReferences`, a single-owner service
+whose shipped provider indexes the **local** workspace directory — which for an
+anchor is empty. A second provider cannot be mounted beside it, so
+`lib/file-reference.mjs` wraps `list(agent, query, signal)`: a call whose agent
+cwd is one of our anchors is answered from the remote tree over SFTP, and every
+other call is delegated to the original implementation.
+
+The remote answer has to survive keystrokes, so one provider per
+`(connection, remotePath)` keeps a settled index of at most 3000 entries built
+from at most 300 directory listings inside a 4 s deadline. A bare query reads
+that index; only the first one waits for the walk, and a stale index (10 s TTL,
+or an explicit invalidation from `remote_ctx_write`, a push, a re-index or the
+panel's **@ 刷新**) answers immediately and rebuilds behind the caret. A
+directory-scoped query (`src/`) lists that directory live and never touches the
+index. `listDir` never opens a connection: an idle, closed or cooling-down host
+returns `null`, the overlay falls back to the shipped local provider, and a
+failure opens a 30 s cooldown so typing does not wait on an SSH timeout.
+
+Candidates are workspace-relative POSIX paths — the spelling `remote_ctx_read`
+accepts from inside the workspace. That is the one path-semantics change:
+`RemoteFs.resolveFrom(base, path)` joins a relative path onto the workspace
+directory (still confined to the connection root), while an absolute or
+`~`-prefixed path keeps its connection-root meaning, and sessions outside an
+anchor keep the connection root as their base. Reading content is unchanged:
+selecting a mention inserts text, and bytes still come from `remote_ctx_read`.
+
+The placeholder listing an earlier version wrote into the anchor is gone with
+it: creating a workspace no longer walks the target, and re-creating one prunes
+the marker files 0.2.0 left behind (`prunePlaceholderFiles`, marker-checked, so
+a local edit survives).
 
 The registry canonicalises the
 anchor path, rejects a nonexistent directory and is idempotent per path; the
@@ -283,12 +297,13 @@ anchor's `@` listing and `remote_ctx_*` tools are scoped to the workspace that
 | `test/config.test.mjs` | connection validation, secret boundary, 0600 store |
 | `test/indexer.test.mjs` | walk, caps, glob, path/name/content search, cache round-trip |
 | `test/mirror.test.mjs` | local walk, push/pull plans, application both ways |
-| `test/workspace.test.mjs` | anchor naming, marker + AGENTS.md, idempotency, single-file placeholder upsert, root-walk slicing |
+| `test/workspace.test.mjs` | anchor naming, marker + AGENTS.md, idempotency, placeholder pruning |
 | `test/ssh-config.test.mjs` | `Host` parsing, first-wins, wildcards, Include, concrete-host list |
 | `test/ssh2-adapter.test.mjs` | error wording, host-key change mapping, the agent-error listener staying alive |
 | `test/dev-link.test.mjs` | profile wiring: dependency + bundle entry, idempotent, removable |
 | `test/api.test.mjs` | the panel routes (including `/api/test` fingerprint and `/api/trust`), 400/404 mapping, secret boundary |
-| `test/plugin.test.mjs` | cordis contract, eight tools, workspace gate (visible/denied/guard), end-to-end through every layer |
+| `test/plugin.test.mjs` | cordis contract, eight tools, workspace gate (visible/denied/guard), workspace-relative base, end-to-end through every layer |
+| `test/file-reference.test.mjs` | ranking, budgets, cache TTL, invalidation, cooldown, abort, and the `fileReferences` overlay |
 
 `test/stub/loader.mjs` resolves `@deepseek-ai/dsh-tools` to a contract stub, and
 `test/fake-remote.mjs` implements the six adapter methods over a `Map`.

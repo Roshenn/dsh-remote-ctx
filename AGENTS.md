@@ -5,7 +5,7 @@ These rules bind this repo only; when the user's instruction for the current tas
 conflicts with them, the user's instruction wins.
 
 The repo is a DSH plugin: plain ESM under `lib/`, one lazily imported runtime
-dependency (`ssh2`), no build step, 116 offline tests. `CONTRIBUTING.md`,
+dependency (`ssh2`), no build step, 137 offline tests. `CONTRIBUTING.md`,
 `SECURITY.md` and `docs/architecture.md` are the source of the rules below — if
 one of them changes, change this file in the same commit.
 
@@ -40,7 +40,7 @@ sidebar UI), `tools` (`lib/index.js`, tool descriptions), `test`, `scripts`,
 
 **Before committing**:
 
-1. `npm test` is green — 116 tests, under a second, no network and no
+1. `npm test` is green — 137 tests, under a second, no network and no
    `npm install` (the `dsh-tools` peer is stubbed by `test/stub/loader.mjs`, the
    remote side is `test/fake-remote.mjs`).
 2. `npm run check` is green — the manifest, the bundle patch row, the two
@@ -105,6 +105,7 @@ tool does, what it refuses, and what to call next.
 | `lib/*.mjs` (host half) | `npm test` + `npm run check`; restart DSH before checking through a live session, modules are cached after load |
 | `lib/client.js` (panel) | reload the sidebar panel and click the flow you touched; `npm run check` (it greps this file) |
 | `lib/index.js` (tool surface) | the tests in `test/plugin.test.mjs`, plus `npm run smoke` to print the resolved config and tool list |
+| `lib/file-reference.mjs` (`@` completion) | `npm test`; the seam is exercised in memory, and the live path needs a real workspace — type `@` there and confirm remote names appear |
 | `lib/ssh2-adapter.mjs` | tests only prove the adapter shape — it is exercised in-memory; say so in the commit body if the change is untested against a real SSH server |
 | `test/` | run the suite; a behaviour fix must come with a test that fails without the fix |
 | `scripts/` | run that script directly |

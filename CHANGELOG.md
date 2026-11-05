@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **Relative remote paths mean the workspace.** A tool called from an anchor
+  session now resolves a relative path against that workspace directory — the
+  spelling `@` hands out — while an absolute or `~`-prefixed path keeps its
+  connection-root meaning. `remote_ctx_ls` and `remote_ctx_sync` default to the
+  workspace inside an anchor; sessions outside one keep the connection root.
+
+### Removed
+
+- **The placeholder listing.** An anchor now holds only `AGENTS.md` and
+  `remote-ctx.json`: creating a workspace no longer walks the target, and
+  re-creating one prunes the marker files 0.2.0 wrote (only those — a local
+  edit inside an anchor survives). Stale placeholders for remote files that no
+  longer exist disappear with them. Nothing is deleted on the remote host.
+
 ### Fixed
 
 - **A local workspace was offered the remote tools.** Every `remote_ctx_*` tool
@@ -17,6 +33,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   dispatch guard re-checks the cwd at call time because `cd` can move the
   session after creation. The panel is unchanged and remains the management
   surface — mirroring a local workspace onto the target starts there.
+
+- **The idle pool never reused a connection.** `remote()` compared
+  `entry.lastUsed`, a field the pool entry does not carry, so the comparison was
+  never true: every tool call closed the SFTP session and opened a new one. It
+  reads `entry.fs.lastUsed` now, which is what the panel's idle display already
+  used and what makes `idleTtlMs` mean anything. Remote `@` would have fallen
+  back on every keystroke without this.
+
+- **A failed ssh-agent connection crashed the whole DSH host.** ssh2 emits two
+  `error` events when the agent socket cannot be reached (the agent error, then
+  `All configured authentication methods failed`). The adapter listened with
+  `once('error')`, so the second error had no listener and Node threw it as an
+  uncaught exception — the host exited with `dsh: fatal uncaught exception` and
+  the app quit. The listener now stays attached for the client's lifetime and
+  settles the connect promise once; an agent socket stored as
+  `$SSH_AUTH_SOCK` is expanded (`$VAR`/`${VAR}`) before it reaches ssh2, and a
+  socket that does not exist becomes `SSH_AGENT_UNREACHABLE` instead of an
+  authentication failure.
 
 ### Added
 
@@ -33,14 +67,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   **上传替换** (a local text file replaces the remote one through the same
   `expectedMtimeMs` conflict guard as the editor, ≤ ~256 KiB). A binary pick is
   refused with the reason instead of being written as mojibake.
-
-- **Opening a workspace refreshes its `@` listing.** A file created on the
-  target outside the plugin — a shell `touch`, another session's write, an
-  editor — stayed invisible to `@file` completion until `remote_ctx_index`, a
-  write, a push or a workspace re-create. A session that opens an anchor now
-  re-walks the connection (same bounded walk as `remote_ctx_index`), at most
-  once per anchor per five minutes, without delaying session creation; the
-  connection detail gained an **@ 清单** button for an immediate refresh.
 
 - **Host-key trust is explicit.** A connection test now reports the `SHA256:`
   fingerprint the target presented (the `remote_ctx_connections` test output and
@@ -65,43 +91,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the file was read at — `expectedMtimeMs` — so a file changed on the target in
   between is refused with `409 file-changed` instead of silently overwritten.
   A truncated or binary read stays read-only. The write goes through the same
-  `allowRemoteWrite` switch as `remote_ctx_write`, drops the cached index and
-  refreshes the workspace `@` placeholder for that path.
+  `allowRemoteWrite` switch as `remote_ctx_write`, and drops both the cached
+  index and the cached `@` listing for the connection.
 
-- **Workspace anchors carry a placeholder listing of the remote tree.** DSH's
-  `@file` completion and the workspace file panel read the local workspace
-  directory, so an anchor holding only `AGENTS.md` + `remote-ctx.json` could
-  never offer a remote file. Creating (or re-creating) a workspace now walks the
-  remote directory and writes directories plus one tiny
-  `[dsh-remote-ctx] remote file:` placeholder per file, bounded by
-  `maxIndexFiles`/`maxIndexDepth`. Placeholders are refreshed only when they
-  still carry the marker, so a real local edit is never clobbered; content is
-  still read through `remote_ctx_read`.
-
-### Fixed
-
-- **Files created after the workspace never reached `@`.** The placeholder
-  listing was materialised only by `remote_ctx_workspace`, so a file created
-  later — a `touch` in a terminal, another session's write, a sync push — stayed
-  invisible to `@file` completion until the workspace was re-created.
-  `remote_ctx_index` now re-materialises every anchor of the connection from the
-  walk it already paid for (no second SFTP traversal), `remote_ctx_write`
-  upserts one placeholder in O(1), and a push refreshes the placeholders it
-  created on both the tool and the panel API. Re-running
-  `remote_ctx_workspace` remains the full refresh. No file is ever deleted on
-  either side; stale placeholders for deleted remote files are left alone by
-  design.
-
-- **A failed ssh-agent connection crashed the whole DSH host.** ssh2 emits two
-  `error` events when the agent socket cannot be reached (the agent error, then
-  `All configured authentication methods failed`). The adapter listened with
-  `once('error')`, so the second error had no listener and Node threw it as an
-  uncaught exception — the host exited with `dsh: fatal uncaught exception` and
-  the app quit. The listener now stays attached for the client's lifetime and
-  settles the connect promise once; an agent socket stored as
-  `$SSH_AUTH_SOCK` is expanded (`$VAR`/`${VAR}`) before it reaches ssh2, and a
-  socket that does not exist becomes `SSH_AGENT_UNREACHABLE` instead of an
-  authentication failure.
+- **`@` completion asks the host.** DSH resolves `@` through the single-owner
+  `ctx.fileReferences` service, whose shipped provider indexes the local
+  workspace directory — for an anchor, an empty one. `lib/file-reference.mjs`
+  now wraps that service: an agent whose cwd is one of our anchors gets ranked
+  candidates from the live remote tree over SFTP, and every other agent keeps
+  the local view untouched. The answer is bounded four ways (3000 entries, 300
+  directories, a 4 s deadline, a 10 s cache), a cold or broken host falls back
+  and opens a 30 s cooldown, and the `fileReference*` config knobs expose every
+  bound. Selecting a candidate still inserts text only; bytes come from
+  `remote_ctx_read`.
 
 ## [0.2.0] — 2026-10-30
 

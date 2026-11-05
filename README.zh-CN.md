@@ -11,7 +11,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
 [![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.1--rc.1-4B32C3?style=flat-square)](#兼容性)
 [![node](https://img.shields.io/badge/node-%3E%3D22.13-339933?style=flat-square&logo=node.js&logoColor=white)](#兼容性)
-[![tests](https://img.shields.io/badge/tests-116%20passing-brightgreen?style=flat-square)](./test)
+[![tests](https://img.shields.io/badge/tests-137%20passing-brightgreen?style=flat-square)](./test)
 
 </div>
 
@@ -29,7 +29,7 @@
 
 ![远程上下文面板：SSH 配置里的 Host、已保存的连接、可创建为工作区的远端目录](docs/images/panel.png)
 
-在由远端目录创建的工作区里，`@` 补全列出的是目标机上真实存在的文件——名字来自锚点的占位清单，内容仍由 `remote_ctx_read` 读取。
+在由远端目录创建的工作区里，`@` 补全列出的是目标机上真实存在的文件——插件直接向目标机要候选，内容仍由 `remote_ctx_read` 读取。
 
 ![远端工作区里 @ 补全列出 src/ 下的 config.yaml 与 pipeline.ts](docs/images/at-completion.png)
 
@@ -58,9 +58,9 @@ DSH 默认工作区在本地磁盘。远端机器——构建机、家里的服�
 - **目标端只要 SSH。** SFTP 是 OpenSSH 自带组件，除此之外什么都不用装。
 - **远端目录可以直接变成工作区。** 点 **创建为工作区**，或调 `remote_ctx_workspace`，
   就会用一个本地锚点注册 DSH 工作区；锚点里的 `AGENTS.md` 告诉 agent 文件在远端、
-  要用 `remote_ctx_*` 工具，于是会话与历史留在本地，文件留在目标机。锚点同时会生成一份远端树的占位清单，`@` 文件补全与工作区文件面板因此能看到远端路径；内容仍由 `remote_ctx_read` 读取。重跑该工具、`remote_ctx_index`、任意 `remote_ctx_write` 或一次 push 都会刷新这份清单，之后在目标机上新建的文件也能被 `@` 看到。
+  要用 `remote_ctx_*` 工具，于是会话与历史留在本地，文件留在目标机。锚点里只有 `AGENTS.md` 与映射文件；`@` 文件补全由插件直接向目标机取，目标机上新建的文件会自行变成可提及，内容仍由 `remote_ctx_read` 读取。
 - **工具只出现在远端工作区。** 八个 `remote_ctx_*` 工具按会话作用域下发：只有 cwd 是锚点的会话看得到；本地工作区里它们完全不出现，本地文件因此不会被误路由到远端插件。面板不受限，把本地工作区推远端仍然从面板的「镜像」发起。
-- **打开工作区就是一次刷新。** 打开远端工作区会重走一遍远端树（与 `remote_ctx_index` 同样有界，同一锚点每五分钟最多一次），目标机上新建的文件因此自动变成 `@` 可提及，不用记得手动重建索引；连接详情里有 **@ 清单** 按钮可立即刷新。
+- **`@` 列出的是远端实时目录树。** 锚点工作区里的补全由插件走 SFTP 向目标机取，四重预算（3000 条 / 300 个目录 / 4 秒 / 10 秒缓存）；主机慢或不可达时回落到本地视图并进入 30 秒冷却，输入不会卡在 SSH 超时上。连接详情的 **@ 刷新** 按钮可立即作废缓存。
 - **主机密钥信任是一个决定，不是默认值。** 测试连接会报告目标端出示的 `SHA256:` 指纹，连接详情里可以 **信任并固定指纹**；固定之后密钥一旦变化，连接会以 `SSH_HOST_KEY_CHANGED` 失败并同时列出两个指纹。
 - **直接吃你的 `~/.ssh/config`。** 面板列出每个具体 `Host` 的主机名、用户、端口和密钥，点一下就把参数填进连接表单——已经配好的东西不用再手填一遍。
 - **路径约束是构造出来的。** 每个远端路径在到达 SFTP 之前都被规范化，并证明落在连接的 `remoteRoot` 之内——模型参数和 HTTP 请求体同样适用。
@@ -184,6 +184,14 @@ cd /path/to/dsh-remote-ctx && npm install --no-package-lock
 | `sshConfigFile` | `~/.ssh/config` | 左栏读取 `Host` 条目的位置 |
 | `workspacesDir` | `$DSH_HOME/remote-ctx/workspaces` | 承载远端工作区的本地锚点目录 |
 | `allowRemoteWrite` | `true` | 设为 `false` 变成只读安装 |
+| `fileReference` | `true` | `@` 由远端树回答；`false` 时回落到本地视图 |
+| `fileReferenceMaxResults` | `20` | 每次查询返回的候选数 |
+| `fileReferenceMaxEntries` | `3000` | 一份远端 `@` 索引保留的条目上限 |
+| `fileReferenceMaxDirs` | `300` | 建一份索引时访问的目录上限 |
+| `fileReferenceTimeoutMs` | `4000` | 建一份索引的挂钟预算 |
+| `fileReferenceCacheTtlMs` | `10000` | 一份索引答复多久后重建 |
+| `fileReferenceFailureCooldownMs` | `30000` | 列目录失败后的冷却时长，期间由本地视图答复 |
+| `fileReferenceExcludedDirectories` | `.git`、`node_modules` 等 | 远端遍历跳过的目录名 |
 
 连接也可以手写文件，扁平结构与 `$DSH_HOME/dsh-ssh-connections.json` 兼容：
 
@@ -234,7 +242,7 @@ host 半在 `tools` 服务上注册八个工具；发现 web server 时再挂一
 | `SSH_AGENT_MISSING` | agent 认证需要 `SSH_AUTH_SOCK`；Windows 的 OpenSSH agent 是命名管道，ssh2 打不开 | 改用私钥或密码 |
 | `SSH_AGENT_UNREACHABLE` | 配置的 agent socket 不存在（`$SSH_AUTH_SOCK` 这类字面量会先展开，但 agent 可能没启动） | 先 `eval "$(ssh-agent)"` 再 `ssh-add ~/.ssh/id_ed25519`，或把连接改成私钥认证 |
 | `SSH_SFTP_UNAVAILABLE` | 服务器关闭了 SFTP 子系统 | 在 `sshd_config` 打开 `Subsystem sftp` |
-| `@` 只列出 `AGENTS.md` 与 `remote-ctx.json` | 锚点里没有清单，或远端遍历被截断 | 对同一目录再点一次 **创建为工作区** 重建清单；若提示截断就调大 `maxIndexFiles` |
+| `@` 列不出远端文件 | 连接未打开、主机失败进入冷却，或 `fileReference` 为 `false` | 先打开一次工作区让连接进入池；在日志里找 `remote @ completion failed`；确认 `fileReference` 未被关掉 |
 | 局域网主机超时 | 网络不对或 VPN 没连 | 在同一台机器上先跑 `ssh user@host` |
 
 想知道服务器允许哪些方式：`ssh -v user@host true` 会打印
@@ -275,7 +283,7 @@ host 半在 `tools` 服务上注册八个工具；发现 web server 时再挂一
 
 ## 状态
 
-`0.2.0` —— host 半、面板、索引与镜像均已实现，116 个测试覆盖。刻意不做的事：
+`0.2.0` —— host 半、面板、索引与镜像均已实现，137 个测试覆盖。刻意不做的事：
 
 - 远端命令执行 / PTY（用 `dsh-remote-ssh`）；
 - 镜像中的删除；
@@ -285,7 +293,7 @@ host 半在 `tools` 服务上注册八个工具；发现 web server 时再挂一
 ## 开发
 
 ```bash
-node --test "test/*.test.mjs"   # 116 个测试，零依赖、零网络
+node --test "test/*.test.mjs"   # 137 个测试，零依赖、零网络
 node scripts/check.mjs          # 包清单 / patch / exports 自检
 node scripts/smoke.mjs          # 打印解析后的配置与连接
 ```
