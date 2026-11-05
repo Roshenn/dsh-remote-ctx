@@ -30,6 +30,7 @@ function makeStack() {
   const dir = join(workspace, `stack-${stackSeq += 1}`);
   mkdirSync(dir, { recursive: true });
   const fake = createFakeRemote({ home: '/home/tester' });
+  const opens = [];
   fake.mkdir('/home/tester/work/src');
   fake.seed('/home/tester/work/README.md', '# remote workspace\n');
   fake.seed('/home/tester/work/src/app.js', 'export const answer = 42;\n');
@@ -46,6 +47,8 @@ function makeStack() {
   const restricted = [];
   const guards = [];
   const listeners = new Map();
+  /** Every `ctx.inject` the plugin asks for, so a test can play the host service. */
+  const injections = [];
   const sessionTools = { restrict(filter) { restricted.push(filter); return () => {}; } };
   const ctx = {
     tools: {
@@ -67,19 +70,47 @@ function makeStack() {
       listeners.set(name, list);
       return () => {};
     },
+    inject(services, callback) {
+      injections.push({ services, callback });
+      return { dispose() {} };
+    },
   };
-  plugin.apply(ctx, config, { adapterFor: () => fake.adapter, registry: () => registry });
-  const call = async (name, args = {}) => {
+  plugin.apply(ctx, config, { adapterFor: (connection) => { opens.push(connection.id); return fake.adapter; }, registry: () => registry });
+  const call = async (name, args = {}, agent = {}) => {
     const definition = registered.get(name);
     if (!definition) throw new Error(`tool ${name} is not registered`);
-    return definition.execute(args, { agent: {}, signal: new AbortController().signal });
+    return definition.execute(args, { agent, signal: new AbortController().signal });
   };
   const emitAgentCreated = (cwd) => {
     const agent = { session: { header: { cwd } }, ctx: { tools: sessionTools } };
     for (const listener of listeners.get('agent/created') ?? []) listener({ agent });
     return agent;
   };
-  return { fake, registered, registry, call, restricted, guards, emitAgentCreated };
+  return { fake, registered, registry, call, restricted, guards, emitAgentCreated, injections, opens };
+}
+
+/**
+ * Play the host's file-reference service for one stack: run the callback the
+ * plugin registered through `ctx.inject`, with the real service object so the
+ * overlay patches the same object the test calls.
+ */
+function mountFileReferences(injections, service) {
+  const entry = injections.find((item) => item.services.length === 1 && item.services[0] === 'fileReferences');
+  assert.ok(entry, 'the plugin asks the host for the file-reference service');
+  const effects = [];
+  entry.callback({
+    fileReferences: service,
+    effect(effect) {
+      effects.push(effect());
+      return () => {};
+    },
+  });
+  return { dispose() { for (const dispose of effects) dispose(); } };
+}
+
+/** The local provider a host without our overlay would answer with. */
+function localFileReferenceService() {
+  return { list: () => Promise.resolve([{ path: 'AGENTS.md', kind: 'file' }]) };
 }
 
 test('plugin exports the cordis contract', () => {
@@ -330,6 +361,7 @@ test('the workspace registry is captured through ctx.inject', async () => {
   // The host does not expose workspaceRegistry as a plain property; it is only
   // available to a context that declared it. This reproduces that shape.
   const fake = createFakeRemote({ home: '/home/tester' });
+  const opens = [];
   fake.mkdir('/home/tester/work');
   const dir = join(workspace, `inject-${stackSeq += 1}`);
   mkdirSync(dir, { recursive: true });
@@ -363,6 +395,7 @@ test('the workspace registry is captured through ctx.inject', async () => {
 
 test('without a registry the anchor is still created and reported', async () => {
   const fake = createFakeRemote({ home: '/home/tester' });
+  const opens = [];
   fake.mkdir('/home/tester/work');
   const dir = join(workspace, `noreg-${stackSeq += 1}`);
   mkdirSync(dir, { recursive: true });
@@ -388,4 +421,79 @@ test('without a registry the anchor is still created and reported', async () => 
   assert.equal(created.ok, false);
   assert.match(created.text, /registry unavailable/);
   assert.ok(created.workspacePath.includes('workspaces'));
+});
+
+test('the remote @ completion lists the live remote tree for an anchor session', async () => {
+  const { call, emitAgentCreated, injections, fake } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+  const agent = emitAgentCreated(created.workspacePath);
+
+  const service = localFileReferenceService();
+  const overlay = mountFileReferences(injections, service);
+  // A file created on the target after the workspace was registered: the whole
+  // point of answering `@` from the remote tree instead of a local listing.
+  fake.seed('/home/tester/work/later.txt', 'later\n');
+  const candidates = await service.list(agent, '');
+  assert.deepEqual(candidates.map((candidate) => candidate.path).sort(), ['README.md', 'later.txt', 'src']);
+  overlay.dispose();
+});
+
+test('a local workspace session keeps the local @ view', async () => {
+  const { call, emitAgentCreated, injections } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
+  await call('remote_ctx_workspace', { connection: 'lan', path: '.' });
+  const localAgent = emitAgentCreated(join(workspace, 'local-checkout'));
+
+  const service = localFileReferenceService();
+  const overlay = mountFileReferences(injections, service);
+  assert.deepEqual(await service.list(localAgent, ''), [{ path: 'AGENTS.md', kind: 'file' }]);
+  overlay.dispose();
+});
+
+test('inside a remote workspace, relative paths resolve against the workspace directory', async () => {
+  const { call, emitAgentCreated } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'work' });
+  const agent = emitAgentCreated(created.workspacePath);
+
+  const read = await call('remote_ctx_read', { connection: 'lan', path: 'src/app.js' }, agent);
+  assert.match(read.text, /answer = 42/);
+
+  const listing = await call('remote_ctx_ls', { connection: 'lan' }, agent);
+  assert.match(listing.text, /README\.md/, 'the default listing is the workspace, not the connection root');
+
+  // The same relative path from a plain session still starts at the root.
+  await assert.rejects(() => call('remote_ctx_read', { connection: 'lan', path: 'src/app.js' }));
+});
+
+test('an absolute path keeps the connection-root meaning inside a workspace', async () => {
+  const { call, emitAgentCreated } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'work' });
+  const agent = emitAgentCreated(created.workspacePath);
+
+  const read = await call('remote_ctx_read', { connection: 'lan', path: '/home/tester/work/README.md' }, agent);
+  assert.match(read.text, /remote workspace/);
+});
+
+test('a workspace session cannot lend its base to another connection', async () => {
+  const { call, emitAgentCreated } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester' });
+  await call('remote_ctx_connections', { action: 'add', id: 'other', host: 'h2', password: 'p', remoteRoot: '/home/tester/work/src' });
+  const created = await call('remote_ctx_workspace', { connection: 'lan', path: 'work' });
+  const agent = emitAgentCreated(created.workspacePath);
+
+  // 'app.js' resolves against the other connection's root, not against the
+  // anchor of this session: a path never crosses hosts.
+  const read = await call('remote_ctx_read', { connection: 'other', path: 'app.js' }, agent);
+  assert.match(read.text, /answer = 42/);
+});
+
+test('one pooled connection serves a second tool call instead of reconnecting', async () => {
+  const { call, opens } = makeStack();
+  await call('remote_ctx_connections', { action: 'add', id: 'lan', host: 'h', password: 'p', remoteRoot: '/home/tester/work' });
+  await call('remote_ctx_ls', { connection: 'lan' });
+  await call('remote_ctx_ls', { connection: 'lan' });
+  assert.equal(opens.length, 1, 'the idle pool reused the open connection');
 });

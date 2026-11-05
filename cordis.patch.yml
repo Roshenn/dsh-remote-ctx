@@ -28,3 +28,15 @@
         maxReadBytes: 262144
         # Writing to the remote over SFTP is on by default; set false for a read-only install.
         allowRemoteWrite: true
+        # Remote `@` completion: a session inside a remote workspace lists the
+        # live remote tree. Every bound below exists so one slow host cannot
+        # turn typing into waiting; a failure falls back to the local view.
+        fileReference: true
+        fileReferenceMaxResults: 20
+        fileReferenceMaxEntries: 3000
+        fileReferenceMaxDirs: 300
+        fileReferenceTimeoutMs: 4000
+        fileReferenceCacheTtlMs: 10000
+        fileReferenceFailureCooldownMs: 30000
+        # Directory basenames a remote traversal skips.
+        fileReferenceExcludedDirectories: ['.git', 'node_modules', 'dist', 'build', 'out', 'coverage', 'target', '.next', '.nuxt', '.turbo', '.venv', 'venv', '__pycache__', '.pytest_cache', '.mypy_cache', '.gradle', '.dsh', 'vendor']

@@ -113,3 +113,23 @@ test('readStore tolerates a missing file and rejects invalid JSON', () => {
   writeFileSync(bad, '{ nope');
   assert.throws(() => readStore({ ...config, connectionsFile: bad }), ConnectionError);
 });
+
+test('resolveConfig carries the remote @ completion defaults and clamps them', () => {
+  const config = resolveConfig({}, { DSH_HOME: workspace });
+  assert.equal(config.fileReference, true);
+  assert.equal(config.fileReferenceMaxResults, 20);
+  assert.equal(config.fileReferenceTimeoutMs, 4000);
+  assert.ok(config.fileReferenceExcludedDirectories.includes('node_modules'));
+
+  const off = resolveConfig({ fileReference: false, fileReferenceMaxResults: 0, fileReferenceTimeoutMs: -5 }, { DSH_HOME: workspace });
+  assert.equal(off.fileReference, false);
+  assert.equal(off.fileReferenceMaxResults, 20, 'a non-positive bound falls back to the default');
+  assert.equal(off.fileReferenceTimeoutMs, 4000);
+});
+
+test('resolveConfig drops excluded names that would hide a whole subtree', () => {
+  const config = resolveConfig({ fileReferenceExcludedDirectories: ['tmp', 'a/b', '', 7, 'cache'] }, { DSH_HOME: workspace });
+  assert.deepEqual(config.fileReferenceExcludedDirectories, ['tmp', 'cache']);
+  const empty = resolveConfig({ fileReferenceExcludedDirectories: [] }, { DSH_HOME: workspace });
+  assert.deepEqual(empty.fileReferenceExcludedDirectories, resolveConfig({}, { DSH_HOME: workspace }).fileReferenceExcludedDirectories);
+});
